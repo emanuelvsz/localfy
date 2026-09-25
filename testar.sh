@@ -13,11 +13,16 @@ echo "  tecla M       alterna o modo de testes"
 echo "  botao amarelo sai do modo de testes"
 echo
 
-for b in xdg-open brave-browser firefox google-chrome chromium; do
+# Navegador direto, nunca xdg-open: ele trata a URL como nome de arquivo e
+# perde o ?mock=1 (e aqui ainda esbarra em libs quebradas do snap).
+for b in brave-browser firefox google-chrome chromium chromium-browser; do
   if command -v "$b" >/dev/null 2>&1; then
-    "$b" "$URL" >/dev/null 2>&1 &
     echo "Abrindo com $b..."
+    nohup "$b" "$URL" >/dev/null 2>&1 &
+    sleep 2
     exit 0
   fi
 done
-echo "Nenhum navegador encontrado - copie a URL acima."
+
+echo "Nenhum navegador encontrado."
+echo "Copie a URL acima e cole na barra de enderecos."
