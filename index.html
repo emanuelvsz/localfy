@@ -700,7 +700,10 @@
       }
       .modal {
         background: var(--card);
-        border-radius: 10px;
+        border-radius: 12px;
+        /* O .body tem overflow-y:auto e, sem isto, desenha seus cantos retos
+           por cima do arredondamento do pai -- o rodape saia quadrado. */
+        overflow: hidden;
         box-shadow: 0 12px 40px rgba(16, 24, 18, 0.18);
         width: 100%;
         max-width: 420px;
@@ -725,7 +728,8 @@
       }
       .modal .body {
         overflow-y: auto;
-        padding: 0 18px 18px;
+        overscroll-behavior: contain;
+        padding: 0 18px 20px;
         scrollbar-width: thin;
         scrollbar-color: var(--card3) transparent;
       }
