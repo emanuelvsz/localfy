@@ -879,6 +879,121 @@ static void registerRoutes() {
 
   // Estatisticas agregadas. Varre o CSV uma vez, linha a linha, sem carregar
   // o arquivo inteiro na RAM (ele cresce para sempre).
+  // Estatisticas de um mes. Recebe {"month":N} onde 0 = mes atual, 1 = o
+  // anterior e assim por diante. Varre o CSV uma vez, linha a linha: o
+  // arquivo cresce para sempre e nao cabe na RAM.
+  g_server.on("/api/stats-monthly", HTTP_POST, [](AsyncWebServerRequest *req) {}, nullptr,
+    [](AsyncWebServerRequest *req, uint8_t *dta, size_t l, size_t i, size_t t) {
+      onJsonBody(req, dta, l, i, t, [](AsyncWebServerRequest *req, JsonDocument &body) {
+        int back = body["month"] | 0;
+        if (back < 0) back = 0;
+        if (back > 240) back = 240;
+
+        if (!timeIsSynced()) { sendErr(req, 503, "relogio sem sincronia"); return; }
+
+        // Determina o mes alvo recuando 'back' meses a partir de hoje.
+        time_t now = time(nullptr);
+        struct tm ref;
+        localtime_r(&now, &ref);
+        int ty = ref.tm_year, tm_ = ref.tm_mon - back;
+        while (tm_ < 0) { tm_ += 12; ty--; }
+
+        static const int mdays[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+        int year = ty + 1900;
+        int days = mdays[tm_];
+        if (tm_ == 1 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)) days = 29;
+
+        uint16_t byDay[31] = {0};
+        uint16_t byHour[24] = {0};
+        uint32_t plays = 0, secs = 0;
+        std::vector<std::pair<String, uint32_t>> artists, genres, tracks;
+
+        File f = SD.open(PATH_HISTORY, FILE_READ);
+        if (f) {
+          f.readStringUntil('\n');  // cabecalho
+          while (f.available()) {
+            String line = f.readStringUntil('\n');
+            if (line.length() < 5) continue;
+
+            String fields[8];
+            int col = 0, p = 0;
+            while (p < (int)line.length() && col < 8) {
+              if (line[p] == '"') {
+                p++;
+                String v;
+                while (p < (int)line.length()) {
+                  if (line[p] == '"' && p + 1 < (int)line.length() && line[p+1] == '"') { v += '"'; p += 2; }
+                  else if (line[p] == '"') { p++; break; }
+                  else v += line[p++];
+                }
+                fields[col++] = v;
+                if (p < (int)line.length() && line[p] == ',') p++;
+              } else {
+                int c = line.indexOf(',', p);
+                if (c < 0) c = line.length();
+                fields[col++] = line.substring(p, c);
+                p = c + 1;
+              }
+            }
+
+            time_t ts = (time_t)fields[0].toInt();
+            if (ts <= 0) continue;              // linha gravada sem relogio
+            struct tm lt;
+            localtime_r(&ts, &lt);
+            if (lt.tm_year != ty || lt.tm_mon != tm_) continue;
+
+            int dom = lt.tm_mday - 1;
+            if (dom >= 0 && dom < 31) byDay[dom]++;
+            if (lt.tm_hour >= 0 && lt.tm_hour < 24) byHour[lt.tm_hour]++;
+            plays++;
+            secs += fields[5].toInt();
+
+            auto bump = [](std::vector<std::pair<String, uint32_t>> &v, const String &k) {
+              if (k.isEmpty()) return;
+              for (auto &e : v) if (e.first == k) { e.second++; return; }
+              if (v.size() < 48) v.push_back({k, 1});
+            };
+            bump(artists, fields[3]);
+            bump(genres, fields[4]);
+            bump(tracks, fields[2]);
+          }
+          f.close();
+        }
+
+        JsonDocument doc;
+        doc["year"] = year;
+        doc["month"] = tm_;
+        doc["days"] = days;
+        static const char *MES[12] = {"janeiro","fevereiro","marco","abril","maio",
+          "junho","julho","agosto","setembro","outubro","novembro","dezembro"};
+        doc["label"] = String(MES[tm_]) + " de " + String(year);
+        doc["plays"] = plays;
+        doc["seconds"] = secs;
+
+        JsonArray ad = doc["byDay"].to<JsonArray>();
+        for (int d = 0; d < days; d++) ad.add(byDay[d]);
+        JsonArray ah = doc["byHour"].to<JsonArray>();
+        for (int h = 0; h < 24; h++) ah.add(byHour[h]);
+
+        auto topN = [&doc](const char *key, std::vector<std::pair<String, uint32_t>> &v) {
+          std::sort(v.begin(), v.end(),
+                    [](const std::pair<String,uint32_t> &a, const std::pair<String,uint32_t> &b) {
+                      return a.second > b.second;
+                    });
+          JsonArray arr = doc[key].to<JsonArray>();
+          for (size_t i = 0; i < v.size() && i < 5; i++) {
+            JsonObject o = arr.add<JsonObject>();
+            o["name"] = v[i].first;
+            o["plays"] = v[i].second;
+          }
+        };
+        topN("topArtists", artists);
+        topN("topGenres", genres);
+        topN("topTracks", tracks);
+        sendJson(req, 200, doc);
+      });
+    });
+
   g_server.on("/api/stats", HTTP_GET, [](AsyncWebServerRequest *req) {
     JsonDocument doc;
     uint32_t plays = 0, secs = 0;

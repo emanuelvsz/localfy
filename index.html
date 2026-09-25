@@ -877,6 +877,55 @@
         color: var(--txt);
       }
 
+      /* ---------- Graficos ---------- */
+      .chart {
+        width: 100%;
+        height: auto;
+        display: block;
+        overflow: visible;
+      }
+      .chart .cbar {
+        fill: var(--green);
+      }
+      .chart .cbar.peak {
+        fill: var(--green-txt);
+      }
+      .chart .grid {
+        stroke: var(--line);
+        stroke-width: 1;
+      }
+      .chart .axis {
+        fill: var(--txt3);
+        font-size: 9px;
+        font-family: inherit;
+      }
+      .chart-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--txt2);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin: 16px 0 6px;
+      }
+      .navm {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        font-size: 17px;
+        line-height: 1;
+        color: var(--txt2);
+        background: var(--card2);
+        transition: 0.15s;
+      }
+      .navm:hover:not(:disabled) {
+        background: var(--card3);
+        color: var(--txt);
+      }
+      .navm:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+
       /* ---------- Test mode badge ---------- */
       .mockbar {
         display: none;
@@ -1021,6 +1070,19 @@
               </label>
             </div>
             <div class="songs" id="songs"></div>
+          </section>
+
+          <!-- Estatisticas do mes -->
+          <section class="card">
+            <h2>
+              <button class="navm" id="monthPrev" title="Mes anterior">‹</button>
+              <span id="monthLabel">—</span>
+              <button class="navm" id="monthNext" title="Proximo mes">›</button>
+              <span class="count" id="monthSum"></span>
+              <span class="hspace"></span>
+              <button class="chip" id="shareBtn">Salvar resumo</button>
+            </h2>
+            <div id="monthly"></div>
           </section>
 
           <!-- Estatisticas -->
@@ -1233,6 +1295,46 @@
         found: [],
         history: [],
         tick: 0,
+        // Historico sintetico de 90 dias. Sem isto o modo de testes comecaria
+        // vazio e nao haveria o que plotar. O padrao imita uso real: mais
+        // escutas a noite e no fim de semana, com dias ociosos no meio.
+        seedHistory() {
+          const now = new Date();
+          const out = [];
+          for (let d = 89; d >= 0; d--) {
+            const day = new Date(now);
+            day.setDate(day.getDate() - d);
+            const wknd = day.getDay() === 0 || day.getDay() === 6;
+            // alguns dias sem nenhuma escuta
+            if (!wknd && Math.random() < 0.22) continue;
+            const plays = Math.round(
+              (wknd ? 6 : 3) + Math.random() * (wknd ? 9 : 6),
+            );
+            for (let i = 0; i < plays; i++) {
+              const s = this.songs[Math.floor(Math.random() * this.songs.length)];
+              if (!s) continue;
+              const hour = Math.random() < 0.62
+                ? 18 + Math.floor(Math.random() * 6)   // noite
+                : 8 + Math.floor(Math.random() * 10);
+              const t = new Date(day);
+              t.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
+              const dur = s.duration || 200;
+              // nem toda escuta vai ate o fim
+              const secs = Math.random() < 0.72
+                ? dur
+                : Math.round(dur * (0.35 + Math.random() * 0.5));
+              out.push({
+                ts: t.getTime() / 1000,
+                file: s.name,
+                artist: s.artist || "",
+                genre: s.genre || "",
+                secs,
+              });
+            }
+          }
+          out.sort((a, b) => a.ts - b.ts);
+          this.history = out;
+        },
         idx() {
           return this.songs.findIndex((s) => s.name === this.st.file);
         },
@@ -1295,6 +1397,38 @@
               s.artist = b.artist || "";
               s.genre = b.genre || "";
               return { ok: true };
+            }
+            case "/api/stats-monthly": {
+              // Agrupa por dia do mes pedido (0 = mes atual, 1 = anterior...)
+              const back = +(b.month || 0);
+              const ref = new Date();
+              ref.setMonth(ref.getMonth() - back, 1);
+              const y = ref.getFullYear(), m = ref.getMonth();
+              const days = new Date(y, m + 1, 0).getDate();
+              const byDay = new Array(days).fill(0);
+              const byHour = new Array(24).fill(0);
+              const art = new Map(), gen = new Map(), tracks = new Map();
+              let plays = 0, secs = 0;
+
+              for (const h of this.history) {
+                const d = new Date(h.ts * 1000);
+                if (d.getFullYear() !== y || d.getMonth() !== m) continue;
+                byDay[d.getDate() - 1] += 1;
+                byHour[d.getHours()] += 1;
+                plays++; secs += h.secs;
+                const bump = (map, k) => k && map.set(k, (map.get(k) || 0) + 1);
+                bump(art, h.artist); bump(gen, h.genre); bump(tracks, h.file);
+              }
+              const top = (map) =>
+                [...map].map(([name, plays]) => ({ name, plays }))
+                  .sort((a, c) => c.plays - a.plays).slice(0, 5);
+              return {
+                year: y, month: m, days,
+                label: ref.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+                plays, seconds: secs,
+                byDay, byHour,
+                topArtists: top(art), topGenres: top(gen), topTracks: top(tracks),
+              };
             }
             case "/api/stats": {
               const cnt = (key) => {
@@ -1410,6 +1544,7 @@
       };
 
       if (MOCK) {
+        Mock.seedHistory();
         setInterval(() => Mock.advance(0.25), 250);
         document.documentElement.classList.add("mock");
       }
@@ -1721,7 +1856,10 @@
         // Repaint list only when the current track changed
         if ((prev.file || "") !== file) {
           renderSongs();
-          if (prev.file) loadStats(); // a faixa anterior pode ter virado scrobble
+          if (prev.file) {
+            loadStats(); // a faixa anterior pode ter virado scrobble
+            if (!S.month) loadMonthly(0);
+          }
         }
 
         // Bluetooth modal live refresh
@@ -1789,13 +1927,144 @@
         btn.textContent = "Salvar";
       }
 
+      /* ========= graficos mensais ========= */
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      const svgEl = (t, attrs) => {
+        const n = document.createElementNS(SVG_NS, t);
+        for (const k in attrs) n.setAttribute(k, attrs[k]);
+        return n;
+      };
+
+      // Barras por dia do mes. Desenhado a mao em SVG: uma lib de grafico
+      // custaria mais bytes que o resto da pagina inteira.
+      function drawDayChart(host, byDay, label) {
+        host.textContent = "";
+        const W = 640, H = 190, padL = 28, padB = 20, padT = 10;
+        const max = Math.max(1, ...byDay);
+        const n = byDay.length;
+        const bw = (W - padL - 8) / n;
+
+        const svg = svgEl("svg", {
+          viewBox: `0 0 ${W} ${H}`,
+          class: "chart",
+          role: "img",
+          "aria-label": `Reproducoes por dia em ${label}`,
+        });
+
+        // grade horizontal + escala
+        for (let i = 0; i <= 2; i++) {
+          const v = Math.round((max / 2) * i);
+          const y = H - padB - ((H - padB - padT) * i) / 2;
+          svg.appendChild(svgEl("line", {
+            x1: padL, x2: W - 4, y1: y, y2: y, class: "grid",
+          }));
+          const t = svgEl("text", { x: 0, y: y + 3.5, class: "axis" });
+          t.textContent = v;
+          svg.appendChild(t);
+        }
+
+        byDay.forEach((v, i) => {
+          const h = v === 0 ? 0 : ((H - padB - padT) * v) / max;
+          const x = padL + i * bw;
+          if (v > 0) {
+            svg.appendChild(svgEl("rect", {
+              x: x + bw * 0.16, y: H - padB - h,
+              width: Math.max(2.5, bw * 0.72), height: h,
+              rx: 1.5, class: "cbar",
+            }));
+          }
+          // rotulo a cada 5 dias
+          if ((i + 1) % 5 === 0 || i === 0) {
+            const t = svgEl("text", {
+              x: x + bw / 2, y: H - 5, class: "axis", "text-anchor": "middle",
+            });
+            t.textContent = i + 1;
+            svg.appendChild(t);
+          }
+        });
+        host.appendChild(svg);
+      }
+
+      // Distribuicao por hora do dia: revela o padrao de uso.
+      function drawHourChart(host, byHour) {
+        host.textContent = "";
+        const W = 640, H = 140, padB = 18, padT = 8;
+        const max = Math.max(1, ...byHour);
+        const bw = W / 24;
+        const svg = svgEl("svg", {
+          viewBox: `0 0 ${W} ${H}`, class: "chart",
+          role: "img", "aria-label": "Reproducoes por hora do dia",
+        });
+        byHour.forEach((v, i) => {
+          const h = v === 0 ? 0 : ((H - padB - padT) * v) / max;
+          if (v > 0) {
+            svg.appendChild(svgEl("rect", {
+              x: i * bw + bw * 0.18, y: H - padB - h,
+              width: bw * 0.66, height: h, rx: 2,
+              class: v === max ? "cbar peak" : "cbar",
+            }));
+          }
+          if (i % 6 === 0) {
+            const t = svgEl("text", {
+              x: i * bw + bw / 2, y: H - 4, class: "axis", "text-anchor": "middle",
+            });
+            t.textContent = i + "h";
+            svg.appendChild(t);
+          }
+        });
+        host.appendChild(svg);
+      }
+
+      async function loadMonthly(back) {
+        S.month = back == null ? S.month || 0 : back;
+        try {
+          const d = await post("/api/stats-monthly", { month: S.month });
+          S.monthly = d;
+          renderMonthly(d);
+        } catch (e) {
+          $("#monthly").textContent = "";
+        }
+      }
+
+      function renderMonthly(d) {
+        $("#monthLabel").textContent = d.label || "";
+        $("#monthPrev").disabled = false;
+        $("#monthNext").disabled = S.month <= 0;
+
+        const sum = $("#monthSum");
+        sum.textContent = d.plays
+          ? `${d.plays} reproducoes · ${fmtHours(d.seconds)}`
+          : "nenhuma escuta neste mes";
+
+        const box = $("#monthly");
+        box.textContent = "";
+        if (!d.plays) return;
+
+        const mk = (title) => {
+          const h = el("div", "chart-title");
+          h.textContent = title;
+          box.appendChild(h);
+          const c = el("div");
+          box.appendChild(c);
+          return c;
+        };
+        drawDayChart(mk("Por dia"), d.byDay, d.label);
+        drawHourChart(mk("Por hora do dia"), d.byHour);
+      }
+
+      const fmtHours = (s) => {
+        const h = Math.floor((s || 0) / 3600);
+        const m = Math.round(((s || 0) % 3600) / 60);
+        return h ? `${h}h ${m}min` : `${m}min`;
+      };
+
       /* ========= estatisticas ========= */
       function renderStats(d) {
         const box = $("#stats");
         box.textContent = "";
         const plays = d.plays || 0;
         $("#statSum").textContent = plays
-          ? plays + " reproducoes · " + fmtTime(d.seconds || 0) + " ouvidos"
+          ? plays + " reproducoes · " + fmtHours(d.seconds || 0) + " ouvidos"
           : "";
 
         if (!plays) {
@@ -1843,6 +2112,167 @@
         } catch (e) {
           /* historico ainda vazio */
         }
+      }
+
+      /* ========= imagem de resumo =========
+         Desenha um cartao 1080x1920 em canvas e baixa como PNG. Feito na
+         mao: qualquer lib de "html para imagem" pesaria mais que a pagina
+         toda e o ESP32 precisa servir isto pela rede local. */
+      function drawSummary(d) {
+        const W = 1080, H = 1920, S1 = 1;
+        const c = document.createElement("canvas");
+        c.width = W; c.height = H;
+        const x = c.getContext("2d");
+
+        const GREEN = "#1db954", DARK = "#101410", MUTED = "#8e968f";
+        const UI = '600 __px_ "Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+        const font = (sz, w) => UI.replace("600", w || "600").replace("__px_", sz + "px");
+
+        // fundo
+        x.fillStyle = DARK;
+        x.fillRect(0, 0, W, H);
+        // faixa verde superior
+        const g = x.createLinearGradient(0, 0, W, 420);
+        g.addColorStop(0, "#1db954");
+        g.addColorStop(1, "#0d6b32");
+        x.fillStyle = g;
+        x.fillRect(0, 0, W, 380);
+
+        let y = 120;
+        x.fillStyle = "#04200f";
+        x.font = font(30, "800");
+        x.letterSpacing = "6px";
+        x.fillText("LOCALFY", 80, y);
+        x.letterSpacing = "0px";
+
+        y += 90;
+        x.fillStyle = "#04200f";
+        x.font = font(76, "800");
+        x.fillText(cap(d.label || ""), 80, y);
+
+        y += 70;
+        x.font = font(30, "600");
+        x.fillStyle = "rgba(4,32,15,.72)";
+        x.fillText("resumo de escutas", 80, y);
+
+        // numeros grandes
+        y = 500;
+        const stat = (val, lbl, px) => {
+          x.fillStyle = "#fff";
+          x.font = font(92, "800");
+          x.fillText(val, px, y);
+          x.fillStyle = MUTED;
+          x.font = font(26, "600");
+          x.fillText(lbl, px, y + 44);
+        };
+        stat(fmtHours(d.seconds), "tempo ouvido", 80);
+        stat(String(d.plays), "reproducoes", 620);
+
+        // grafico por dia
+        y = 700;
+        x.fillStyle = MUTED;
+        x.font = font(24, "700");
+        x.letterSpacing = "3px";
+        x.fillText("POR DIA", 80, y);
+        x.letterSpacing = "0px";
+
+        const cx = 80, cy = y + 40, cw = W - 160, ch = 210;
+        const mx = Math.max(1, ...(d.byDay || [1]));
+        const bw = cw / (d.byDay || [1]).length;
+        (d.byDay || []).forEach((v, i) => {
+          const bh = v ? (ch * v) / mx : 0;
+          if (!bh) return;
+          x.fillStyle = v === mx ? "#fff" : GREEN;
+          const bx = cx + i * bw;
+          rrect(x, bx + bw * 0.15, cy + ch - bh, Math.max(2, bw * 0.7), bh, 3);
+          x.fill();
+        });
+        // linha de base
+        x.strokeStyle = "rgba(255,255,255,.12)";
+        x.lineWidth = 2;
+        x.beginPath(); x.moveTo(cx, cy + ch); x.lineTo(cx + cw, cy + ch); x.stroke();
+
+        // listas
+        y = cy + ch + 110;
+        y = drawList(x, "TOP ARTISTAS", d.topArtists, y, GREEN, MUTED, font);
+        y = drawList(x, "TOP GENEROS", d.topGenres, y + 50, GREEN, MUTED, font);
+
+        // rodape
+        x.fillStyle = "rgba(255,255,255,.35)";
+        x.font = font(22, "600");
+        x.fillText("tocado no meu ESP32", 80, H - 70);
+        return c;
+      }
+
+      function drawList(x, title, items, y, GREEN, MUTED, font) {
+        x.fillStyle = MUTED;
+        x.font = font(24, "700");
+        x.letterSpacing = "3px";
+        x.fillText(title, 80, y);
+        x.letterSpacing = "0px";
+        y += 54;
+        const max = Math.max(1, ...(items || []).map((i) => i.plays));
+        (items || []).slice(0, 5).forEach((it, i) => {
+          x.fillStyle = "rgba(255,255,255,.25)";
+          x.font = font(34, "800");
+          x.fillText(String(i + 1), 80, y + 6);
+
+          x.fillStyle = "#fff";
+          x.font = font(36, "700");
+          x.fillText(trunc(x, it.name, 620), 140, y + 6);
+
+          x.fillStyle = MUTED;
+          x.font = font(28, "600");
+          const t = it.plays + "x";
+          x.fillText(t, 1000 - x.measureText(t).width, y + 6);
+
+          // barrinha proporcional
+          x.fillStyle = "rgba(29,185,84,.32)";
+          rrect(x, 140, y + 20, (760 * it.plays) / max, 6, 3);
+          x.fill();
+          y += 78;
+        });
+        return y;
+      }
+
+      function rrect(x, px, py, w, h, r) {
+        x.beginPath();
+        if (x.roundRect) x.roundRect(px, py, w, h, r);
+        else x.rect(px, py, w, h);
+      }
+      function trunc(x, str, max) {
+        let t = str || "";
+        if (x.measureText(t).width <= max) return t;
+        while (t.length > 3 && x.measureText(t + "…").width > max) t = t.slice(0, -1);
+        return t + "…";
+      }
+      const cap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+
+      async function saveSummary() {
+        const btn = $("#shareBtn");
+        const old = btn.textContent;
+        btn.textContent = "Gerando…";
+        btn.disabled = true;
+        try {
+          const d = S.monthly || (await post("/api/stats-monthly", { month: S.month || 0 }));
+          if (!d.plays) {
+            toast("Nenhuma escuta neste mes", true);
+          } else {
+            const canvas = drawSummary(d);
+            const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+            const url = URL.createObjectURL(blob);
+            const a = el("a");
+            a.href = url;
+            a.download = `localfy-${d.year}-${String(d.month + 1).padStart(2, "0")}.png`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+            toast("Imagem salva");
+          }
+        } catch (e) {
+          toast("Falha ao gerar imagem", true);
+        }
+        btn.textContent = old;
+        btn.disabled = false;
       }
 
       /* ========= bluetooth ========= */
@@ -2146,8 +2576,13 @@
         });
 
         // boot + polling
+        $("#monthPrev").onclick = () => loadMonthly((S.month || 0) + 1);
+        $("#monthNext").onclick = () => loadMonthly(Math.max(0, (S.month || 0) - 1));
+        $("#shareBtn").onclick = saveSummary;
+
         loadSongs();
         loadStats();
+        loadMonthly(0);
         pullStatus();
         setInterval(() => {
           if (!document.hidden) pullStatus();
