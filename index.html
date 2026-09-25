@@ -10,16 +10,24 @@
     <title>Localfy</title>
     <style>
       :root {
-        --bg: #121212;
-        --card: #181818;
-        --card2: #282828;
-        --card3: #3e3e3e;
-        --green: #1db954;
-        --green-h: #1ed760;
-        --txt: #ffffff;
-        --txt2: #b3b3b3;
-        --txt3: #727272;
-        --red: #e2264d;
+        --bg: #f4f6f4;        /* fundo da pagina */
+        --card: #ffffff;      /* cartoes */
+        --card2: #eef1ef;     /* preenchimento sutil (campos, chips) */
+        --card3: #dfe4e0;     /* hover / bordas */
+        --green: #1db954;     /* verde Spotify: fundo de botao, nunca texto */
+        --green-h: #17a449;
+        /* Sobre branco o verde puro rende apenas 2.6:1, insuficiente para
+           texto. Este tom escuro chega a 6.6:1 e e usado quando o verde
+           precisa ser lido. */
+        --green-txt: #0d6b32;
+        --green-soft: #e6f6ec; /* realce de fundo bem claro */
+        --txt: #1a1c1a;       /* 17:1 sobre branco */
+        --txt2: #5c625e;      /* 6.2:1 - secundario */
+        --txt3: #696f69;      /* 4.5:1 mesmo sobre os campos cinza */
+        --red: #c31f42;
+        --line: #e4e8e5;      /* divisorias */
+        --shadow: 0 1px 2px rgba(16, 24, 18, 0.06),
+          0 2px 8px rgba(16, 24, 18, 0.05);
         --radius: 8px;
       }
       * {
@@ -66,9 +74,9 @@
         align-items: center;
         gap: 12px;
         padding: 14px 18px;
-        background: rgba(18, 18, 18, 0.92);
+        background: rgba(255, 255, 255, 0.88);
         backdrop-filter: blur(12px);
-        border-bottom: 1px solid #000;
+        border-bottom: 1px solid var(--line);
       }
       .brand {
         display: flex;
@@ -170,17 +178,17 @@
         overflow-x: hidden;
         padding: 18px 18px 8px;
         scrollbar-width: thin;
-        scrollbar-color: #4d4d4d transparent;
+        scrollbar-color: var(--card3) transparent;
       }
       main::-webkit-scrollbar {
         width: 8px;
       }
       main::-webkit-scrollbar-thumb {
-        background: #4d4d4d;
+        background: var(--card3);
         border-radius: 4px;
       }
       main::-webkit-scrollbar-thumb:hover {
-        background: #6a6a6a;
+        background: #c8cfca;
       }
       main::-webkit-scrollbar-track {
         background: transparent;
@@ -196,6 +204,7 @@
         background: var(--card);
         border-radius: var(--radius);
         padding: 18px;
+        box-shadow: var(--shadow);
       }
       .card h2 {
         font-size: 15px;
@@ -213,7 +222,7 @@
 
       /* ---------- Upload ---------- */
       .drop {
-        border: 2px dashed #3e3e3e;
+        border: 2px dashed var(--card3);
         border-radius: var(--radius);
         padding: 26px 18px;
         text-align: center;
@@ -225,7 +234,7 @@
       .drop:hover,
       .drop.over {
         border-color: var(--green);
-        background: rgba(29, 185, 84, 0.07);
+        background: var(--green-soft);
       }
       .drop svg {
         width: 34px;
@@ -285,7 +294,7 @@
       .bar {
         height: 5px;
         border-radius: 3px;
-        background: #5a5a5a;
+        background: var(--card3);
         overflow: hidden;
       }
       .bar > i {
@@ -303,7 +312,7 @@
         color: var(--red);
       }
       .up-item.done .pc {
-        color: var(--green);
+        color: var(--green-txt);
       }
 
       /* ---------- Filters ---------- */
@@ -385,7 +394,8 @@
         height: 34px;
         flex: 0 0 auto;
         border-radius: 50%;
-        background: var(--card3);
+        background: var(--card2);
+        border: 1px solid var(--card3);
         display: grid;
         place-items: center;
         transition: 0.18s;
@@ -393,11 +403,12 @@
       .song:hover .pbtn,
       .song.now .pbtn {
         background: var(--green);
+        border-color: var(--green);
       }
       .song .pbtn svg {
         width: 13px;
         height: 13px;
-        fill: var(--txt2);
+        fill: var(--txt);
       }
       .song:hover .pbtn svg,
       .song.now .pbtn svg {
@@ -414,7 +425,7 @@
         text-overflow: ellipsis;
       }
       .song.now .t {
-        color: var(--green);
+        color: var(--green-txt);
         font-weight: 600;
       }
       .song .s {
@@ -435,12 +446,12 @@
         color: var(--txt2);
       }
       .tag.mp3 {
-        background: #2a3f6b;
-        color: #9dbcff;
+        background: #e3ecfb;
+        color: #2c4f8f;
       }
       .tag.wav {
-        background: #4a2a6b;
-        color: #ceb3ff;
+        background: #efe6fb;
+        color: #5b3a8f;
       }
       .song .del {
         width: 32px;
@@ -483,7 +494,8 @@
       .player {
         flex: 0 0 auto;
         background: var(--card);
-        border-top: 1px solid #000;
+        border-top: 1px solid var(--line);
+        box-shadow: 0 -2px 10px rgba(16, 24, 18, 0.05);
         padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
         display: flex;
         align-items: center;
@@ -559,7 +571,7 @@
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background: #fff;
+        background: var(--green);
       }
       .play svg {
         fill: #000 !important;
@@ -611,12 +623,12 @@
         background:
           linear-gradient(var(--green), var(--green)) 0 / var(--fill, 0%) 100%
             no-repeat,
-          #5a5a5a;
+          var(--card3);
       }
       input[type="range"]::-moz-range-track {
         height: 4px;
         border-radius: 2px;
-        background: #5a5a5a;
+        background: var(--card3);
       }
       input[type="range"]::-moz-range-progress {
         height: 4px;
@@ -671,7 +683,7 @@
       .mask {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.72);
+        background: rgba(26, 28, 26, 0.45);
         backdrop-filter: blur(3px);
         display: flex;
         align-items: center;
@@ -689,6 +701,7 @@
       .modal {
         background: var(--card);
         border-radius: 10px;
+        box-shadow: 0 12px 40px rgba(16, 24, 18, 0.18);
         width: 100%;
         max-width: 420px;
         max-height: 80vh;
@@ -714,13 +727,13 @@
         overflow-y: auto;
         padding: 0 18px 18px;
         scrollbar-width: thin;
-        scrollbar-color: #4d4d4d transparent;
+        scrollbar-color: var(--card3) transparent;
       }
       .modal .body::-webkit-scrollbar {
         width: 6px;
       }
       .modal .body::-webkit-scrollbar-thumb {
-        background: #4d4d4d;
+        background: var(--card3);
         border-radius: 3px;
       }
       .btn {
@@ -781,7 +794,7 @@
         font-family: monospace;
       }
       .dev.cur .n {
-        color: var(--green);
+        color: var(--green-txt);
         font-weight: 600;
       }
       .spin {
@@ -800,8 +813,8 @@
       }
 
       .tag.gen {
-        background: #1f4d33;
-        color: #7ee2a8;
+        background: var(--green-soft);
+        color: var(--green-txt);
       }
       .field {
         margin-bottom: 14px;
@@ -870,7 +883,7 @@
         flex: 1;
       }
       .mockbar button {
-        background: rgba(0, 0, 0, 0.16);
+        background: rgba(0, 0, 0, 0.12);
         color: #000;
         font-weight: 700;
         font-size: 11px;
@@ -879,7 +892,7 @@
         transition: background 0.15s;
       }
       .mockbar button:hover {
-        background: rgba(0, 0, 0, 0.3);
+        background: rgba(0, 0, 0, 0.22);
       }
 
       /* ---------- Toast ---------- */
@@ -896,13 +909,13 @@
         pointer-events: none;
       }
       .toast {
-        background: #fff;
-        color: #000;
+        background: var(--txt);
+        color: #fff;
         font-size: 13px;
         font-weight: 600;
         padding: 10px 18px;
         border-radius: 999px;
-        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 8px 28px rgba(16, 24, 18, 0.22);
         animation: tin 0.25s;
       }
       .toast.bad {
