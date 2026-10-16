@@ -1,0 +1,40 @@
+BMO ev1 - pecas para imprimir
+==============================
+
+Case do Localfy no formato do BMO: 60 x 100 x 40 mm.
+Todos os STL ja estao na posicao certa de impressao (nao precisa girar).
+
+Configuracao sugerida
+---------------------
+- PLA (o "clipe" de metal nao e impresso)
+- Camada 0,2 mm (0,12 mm nas pecas pequenas)
+- 3 perimetros, 20% de preenchimento
+- SEM SUPORTE em todas as pecas
+
+Pecas
+-----
+Arquivo           Cor sugerida            Qtd   Observacao
+frente.stl        verde-agua (cor do BMO)  1    peca maior; frente na mesa
+tampa.stl         verde-agua               1    face de fora na mesa
+base.stl          branco ou cinza-claro    1    base de mesa
+moldura.stl       verde-claro ou branco    1    visor da tela
+letras.stl        preto                    2    2 jogos de "BMO" (um por lateral)
+fenda.stl         preto                    1
+vermelho.stl      vermelho                 1    botao
+verde.stl         verde                    1    botao
+pilula.stl        azul                     2    botoes (imprimir 2)
+cruz.stl          amarelo                  1
+triangulo.stl     azul-claro               1
+bolinha.stl       azul                     1
+knob.stl          preto                    1    OPCIONAL (pode usar knob de guitarra)
+teste_suporte.stl qualquer cor             1    plaquinha de teste do suporte de moto (~10 min)
+
+Ordem recomendada
+-----------------
+1. Imprima primeiro a "bolinha" e o "teste_suporte" (testes rapidos).
+   A bolinha testa a folga do encaixe na frente; o teste_suporte vai ser
+   encaixado no suporte de celular da moto. Avise antes de imprimir o resto.
+2. Depois as pecas pequenas e a tampa.
+3. Por ultimo a frente (a maior).
+
+Duvidas: falar com o Emanuel.

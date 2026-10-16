@@ -10,7 +10,8 @@ class Button {
   enum class Event : uint8_t { None, Click, LongPress };
 
   // longPressMs = 0 desliga a pressao longa (so existe o clique).
-  explicit Button(uint8_t pin, uint32_t longPressMs = 0);
+  // repeatMs > 0: continuando apertado, repete o LongPress nesse intervalo.
+  explicit Button(uint8_t pin, uint32_t longPressMs = 0, uint32_t repeatMs = 0);
   void begin();
   // Chamar no loop. Click sai ao soltar; LongPress sai ainda apertado,
   // dando retorno imediato, e nesse caso o soltar nao gera Click.
@@ -19,6 +20,7 @@ class Button {
  private:
   uint8_t pin_;
   uint32_t longPressMs_;
+  uint32_t repeatMs_;
   bool pressed_ = false;
   bool longFired_ = false;
   uint32_t downSinceMs_ = 0;

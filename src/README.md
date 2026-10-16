@@ -19,7 +19,8 @@ src/
 │   ├── Storage         monta o cartão
 │   ├── Library         lista de músicas (/music)
 │   ├── MetaStore       artista e gênero (meta.json)
-│   └── History         histórico de reprodução (history.csv)
+│   ├── History         histórico de reprodução (history.csv)
+│   └── Settings        fone escolhido (memória interna, NVS)
 ├── audio/
 │   ├── Player          o que toca, play/pause, próxima, volume, histórico
 │   ├── AudioPipeline   arquivo → decoder MP3 → buffer → Bluetooth
@@ -27,7 +28,7 @@ src/
 ├── bluetooth/
 │   └── Bluetooth       conexão A2DP com o fone
 ├── net/
-│   └── WifiLink        Wi-Fi e relógio (NTP), só no modo Web
+│   └── WifiLink        rede própria do Localfy (ponto de acesso), só no modo Web
 ├── web/                servidor do modo Web
 │   ├── WebServer       sobe o servidor e registra as rotas
 │   ├── Http            respostas JSON e leitura de corpo JSON
@@ -75,6 +76,34 @@ O ESP32 sem PSRAM não tem RAM para Wi-Fi e Bluetooth juntos. Por isso:
 Para trocar: aperte o **vermelho** (abre a pergunta) e confirme no **verde**.
 Se apertar o vermelho sem querer, aperte de novo para cancelar (ou espere 10 s).
 A música para, a tela avisa o novo modo e o aparelho reinicia já nele.
+
+**Navegar nas músicas:** no player, um **azul** abre a lista na pasta que está
+tocando (o primeiro toque só abre). Azuis movem a seleção; **segurar um azul** pula
+uma página inteira (e continua pulando enquanto segura). **Verde** abre a pasta ou
+toca a música, e a pasta vira a fila. **Vermelho** sobe um nível: músicas → pastas
+→ player. A lista fecha sozinha após 8 s parada.
+
+**Aleatório:** na lista de pastas, o primeiro item é **"Aleatorio SIM/NAO"**; o
+**verde** liga e desliga. Escolha "Todas" (biblioteca inteira) ou uma pasta (só
+aquele artista). Com ele ligado, a barra do player mostra **"ALE"**. Fica salvo.
+
+**Trocar de fone (modo Bluetooth):** segure o **vermelho** por 3 s. A música para,
+o fone atual desconecta e aparece a lista de aparelhos de áudio por perto (deixe o
+novo fone em modo de pareamento). Azuis escolhem, **verde** conecta, **vermelho**
+cancela e volta a procurar o fone anterior. A escolha fica salva na memória do
+ESP32 e vale nos próximos boots. Se o fone desligar, o Localfy volta a procurá-lo
+e reconecta sozinho.
+
+**Modo Web:** o Localfy não entra em roteador nenhum. Ele cria a própria rede
+**Localfy** (senha `Localfy271003!`, em `config/Config.h`) e mostra nome, senha e
+endereço na tela. Entre nela pelo celular ou computador e abra `http://192.168.4.1`
+(no celular, a interface costuma abrir sozinha). Como a rede não tem internet, a
+interface acerta o relógio do aparelho com a hora do celular ao abrir.
+
+**Standby:** segure o **verde** por 3 s. Aparece a cara
+do BMO em cores invertidas (fundo claro) (pisca e troca de expressão); a música continua como estava. Para sair,
+clique no **verde** (esse clique só sai, não pausa). Os outros botões ficam
+inativos no standby; o knob continua mudando o volume.
 
 ## Compilar e gravar
 

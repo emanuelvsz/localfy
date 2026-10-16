@@ -1,0 +1,322 @@
+{
+  "version": 1,
+  "author": "Localfy",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "board-ssd1306",
+      "id": "oled",
+      "top": -120,
+      "left": 130,
+      "rotate": 180,
+      "attrs": {
+        "i2cAddress": "0x3c"
+      }
+    },
+    {
+      "type": "wokwi-microsd-card",
+      "id": "sd",
+      "top": 60,
+      "left": 230,
+      "rotate": 180,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 167,
+      "left": 115,
+      "attrs": {
+        "value": "47"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led",
+      "top": 145,
+      "left": 180,
+      "rotate": 180,
+      "attrs": {
+        "color": "white"
+      }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot",
+      "top": -70,
+      "left": -130,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "bnext",
+      "top": 50,
+      "left": -210,
+      "attrs": {
+        "color": "blue",
+        "label": "Próxima"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "bprev",
+      "top": 120,
+      "left": -210,
+      "attrs": {
+        "color": "blue",
+        "label": "Anterior"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "bmode",
+      "top": 190,
+      "left": -210,
+      "attrs": {
+        "color": "red",
+        "label": "Modo"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "bplay",
+      "top": 260,
+      "left": -210,
+      "attrs": {
+        "color": "green",
+        "label": "Play/pausa"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "esp:TX",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "pot:VCC",
+      "esp:3V3",
+      "red",
+      [
+        "v30"
+      ]
+    ],
+    [
+      "pot:SIG",
+      "esp:35",
+      "orange",
+      [
+        "v78"
+      ]
+    ],
+    [
+      "bnext:2.r",
+      "esp:32",
+      "blue",
+      [
+        "h93",
+        "v4"
+      ]
+    ],
+    [
+      "bprev:2.r",
+      "esp:33",
+      "blue",
+      [
+        "h103",
+        "v-56"
+      ]
+    ],
+    [
+      "bmode:2.r",
+      "esp:26",
+      "red",
+      [
+        "h113",
+        "v-107"
+      ]
+    ],
+    [
+      "bplay:2.r",
+      "esp:27",
+      "green",
+      [
+        "h123",
+        "v-167"
+      ]
+    ],
+    [
+      "pot:GND",
+      "bnext:1.l",
+      "black",
+      [
+        "v11",
+        "h-129",
+        "v53"
+      ]
+    ],
+    [
+      "bnext:1.l",
+      "bprev:1.l",
+      "black",
+      [
+        "h-20",
+        "v70"
+      ]
+    ],
+    [
+      "bprev:1.l",
+      "bmode:1.l",
+      "black",
+      [
+        "h-20",
+        "v70"
+      ]
+    ],
+    [
+      "bmode:1.l",
+      "bplay:1.l",
+      "black",
+      [
+        "h-20",
+        "v70"
+      ]
+    ],
+    [
+      "bplay:1.l",
+      "esp:GND.1",
+      "black",
+      [
+        "h-20",
+        "v57",
+        "h220",
+        "v-176"
+      ]
+    ],
+    [
+      "oled:SDA",
+      "esp:21",
+      "blue",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "oled:SCL",
+      "esp:22",
+      "gold",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "oled:GND",
+      "esp:GND.2",
+      "black",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "oled:VCC",
+      "esp:3V3",
+      "red",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "sd:CS",
+      "esp:5",
+      "violet",
+      [
+        "h0"
+      ]
+    ],
+    [
+      "sd:DI",
+      "esp:23",
+      "purple",
+      [
+        "h0"
+      ]
+    ],
+    [
+      "sd:SCK",
+      "esp:18",
+      "orange",
+      [
+        "h0"
+      ]
+    ],
+    [
+      "sd:DO",
+      "esp:19",
+      "cyan",
+      [
+        "h0"
+      ]
+    ],
+    [
+      "sd:GND",
+      "esp:GND.3",
+      "black",
+      [
+        "h0"
+      ]
+    ],
+    [
+      "sd:VCC",
+      "esp:5V",
+      "red",
+      [
+        "h-10",
+        "v210",
+        "h-230",
+        "v-98"
+      ]
+    ],
+    [
+      "esp:15",
+      "r1:1",
+      "gray",
+      [
+        "h0"
+      ]
+    ],
+    [
+      "r1:2",
+      "led:A",
+      "gray",
+      [
+        "h0"
+      ]
+    ],
+    [
+      "led:C",
+      "esp:GND.1",
+      "black",
+      [
+        "v157",
+        "h-215",
+        "v-176"
+      ]
+    ]
+  ],
+  "dependencies": {}
+}

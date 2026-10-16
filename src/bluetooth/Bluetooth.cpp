@@ -1,11 +1,14 @@
 #include "bluetooth/Bluetooth.h"
 
+#include <esp_gap_bt_api.h>
+
 #include "BluetoothA2DPSource.h"
 #include "audio/AudioPipeline.h"
 #include "audio/Player.h"
 #include "config/Config.h"
 #include "core/BootMode.h"
 #include "core/Diagnostics.h"
+#include "storage/Settings.h"
 
 namespace {
 // Usamos a BluetoothA2DPSource diretamente, e nao o envelope A2DPStream do
@@ -17,6 +20,7 @@ String s_name, s_address;
 String s_connectTo;              // nome ou MAC pedido pela interface ("" = padrao)
 bool s_radioOn = false;
 volatile bool s_startRequested = false;
+volatile bool s_picking = false;   // seletor aberto: lista tudo e nao conecta
 
 // Aparelhos vistos, preenchidos pela task do Bluetooth. Tamanho fixo de
 // proposito: um std::vector aqui corrompia a memoria, porque o push_back
@@ -30,8 +34,22 @@ volatile int s_foundCount = 0;
 Found s_found[cfg::bt::MAX_DEVICES];
 std::vector<BtDevice> s_devices;   // copia lida pelas rotas web
 
+// Prioridade: pedido da interface > ultimo aparelho escolhido (pelo MAC, que
+// nao muda) > nome de secrets.h.
 String currentTarget() {
-  return s_connectTo.isEmpty() ? String(cfg::BT_TARGET) : s_connectTo;
+  if (!s_connectTo.isEmpty()) return s_connectTo;
+  String saved = settings::btAddress();
+  return saved.isEmpty() ? String(cfg::BT_TARGET) : saved;
+}
+
+// A biblioteca so procura aparelhos ate a primeira conexao; depois que um fone
+// desconecta ela fica parada. Esta chamada retoma a busca (o callback abaixo
+// decide em quem conectar). Se ja houver uma busca em andamento, o pedido e
+// recusado sem efeito.
+void startDiscovery() {
+  if (!s_radioOn) return;
+  esp_err_t err = esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, 10, 0);
+  Serial.printf("[BT] busca %s\n", err == ESP_OK ? "iniciada" : "ja em andamento");
 }
 
 // Chamado pela pilha Bluetooth pedindo 'count' quadros estereo de 16 bits.
@@ -48,10 +66,11 @@ bool onDeviceFound(const char *ssid, esp_bd_addr_t addr, int rssi) {
            addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
 
   int n = s_foundCount;
+  bool seen = false;
   for (int i = 0; i < n; i++)
-    if (strcmp(s_found[i].mac, mac) == 0) return false;   // ja visto
+    if (strcmp(s_found[i].mac, mac) == 0) seen = true;
 
-  if (n < (int)cfg::bt::MAX_DEVICES) {
+  if (!seen && n < (int)cfg::bt::MAX_DEVICES) {
     snprintf(s_found[n].name, sizeof(s_found[n].name), "%s",
              (ssid && *ssid) ? ssid : "(sem nome)");
     snprintf(s_found[n].mac, sizeof(s_found[n].mac), "%s", mac);
@@ -63,7 +82,11 @@ bool onDeviceFound(const char *ssid, esp_bd_addr_t addr, int rssi) {
   // Correspondencia tolerante: ignora maiusculas e aceita parte do nome. O
   // mesmo aparelho anuncia "JBL WAVE FLEX" e "JBL WAVE FLEX-LE"; a variante
   // LE e Bluetooth Low Energy, que nao transporta audio, e e descartada.
+  // Com o seletor aberto so listamos; a conexao espera a escolha.
+  if (s_picking) return false;
+
   String target = currentTarget();
+  if (target.isEmpty()) return false;
   String name = ssid ? String(ssid) : String("");
   String targetUp = target;
   targetUp.toUpperCase();
@@ -71,7 +94,7 @@ bool onDeviceFound(const char *ssid, esp_bd_addr_t addr, int rssi) {
   nameUp.toUpperCase();
 
   bool match = (!nameUp.isEmpty() && nameUp.indexOf(targetUp) >= 0 && !nameUp.endsWith("-LE")) ||
-               String(mac) == target;
+               String(mac).equalsIgnoreCase(target);
   if (match) Serial.printf("[BT] ALVO ENCONTRADO: %s (%s)\n", name.c_str(), mac);
   return match;
 }
@@ -112,9 +135,46 @@ void startRadioIfRequested() {
 
 void bluetooth::requestStart() {
   s_state = BtState::Connecting;
+  s_name = settings::btName();
+  s_address = settings::btAddress();
   s_startRequested = true;
-  Serial.printf("[BT] procurando %s\n", cfg::BT_TARGET);
+  Serial.printf("[BT] procurando %s\n", currentTarget().c_str());
 }
+
+void bluetooth::beginPicker() {
+  player::stop();
+  s_picking = true;
+  s_devices.clear();
+  s_foundCount = 0;
+  bool wasConnected = s_a2dp.is_connected();
+  s_state = BtState::Scanning;
+  if (wasConnected) s_a2dp.disconnect();
+  startDiscovery();
+  Serial.println("[BT] seletor aberto");
+}
+
+bool bluetooth::pick(size_t index) {
+  if (index >= s_devices.size()) return false;
+  const BtDevice &d = s_devices[index];
+  settings::setBt(d.name, d.address);
+  s_name = d.name;
+  s_address = d.address;
+  s_connectTo = d.address;
+  s_picking = false;
+  s_state = BtState::Connecting;
+  startDiscovery();   // normalmente ja esta rodando; o callback conecta ao rever o MAC
+  Serial.printf("[BT] escolhido %s (%s)\n", d.name.c_str(), d.address.c_str());
+  return true;
+}
+
+void bluetooth::cancelPicker() {
+  s_picking = false;
+  s_state = BtState::Connecting;
+  startDiscovery();
+  Serial.println("[BT] seletor cancelado, procurando o aparelho salvo");
+}
+
+bool bluetooth::picking() { return s_picking; }
 
 void bluetooth::requestConnect(const String &name, const String &address) {
   s_state = BtState::Connecting;
@@ -122,7 +182,6 @@ void bluetooth::requestConnect(const String &name, const String &address) {
   s_address = address;
   s_connectTo = name.isEmpty() ? address : name;
   s_startRequested = true;
-  applyVolume(player::volume());
 }
 
 // A biblioteca ESP32-A2DP nao tem um modo "so escanear": a descoberta
@@ -156,13 +215,14 @@ void bluetooth::poll() {
     bool ok = pipeline::createBuffer();
     Serial.printf("[BT] buffer de audio %s, heap livre %u\n", ok ? "criado" : "FALHOU",
                   (unsigned)ESP.getFreeHeap());
-    applyVolume(player::volume());
-  }
+    }
 
   if (s_state == BtState::Connected && !s_a2dp.is_connected()) {
-    // Fone desligou ou saiu de alcance: para o audio para nao gastar CPU.
-    s_state = BtState::Disconnected;
+    // Fone desligou ou saiu de alcance: para o audio e volta a procurar o
+    // mesmo aparelho, para reconectar sozinho quando ele voltar.
     player::onLinkLost();
+    s_state = BtState::Connecting;
+    startDiscovery();
   }
 }
 
@@ -182,7 +242,3 @@ const String &bluetooth::deviceName() { return s_name; }
 const String &bluetooth::deviceAddress() { return s_address; }
 const std::vector<BtDevice> &bluetooth::devices() { return s_devices; }
 
-void bluetooth::applyVolume(uint8_t percent) {
-  if (!s_radioOn) return;   // sem radio a cadeia nao existe; o valor fica no player
-  s_a2dp.set_volume((uint8_t)((uint16_t)percent * 127 / 100));
-}

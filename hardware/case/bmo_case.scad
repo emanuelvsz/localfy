@@ -15,6 +15,7 @@
 //    "pilula"    - botoes anterior/proxima, imprimir 2 (azul)
 //    "knob"      - knob do volume, no ombro esquerdo (preto)
 //    "cruz", "triangulo", "bolinha" - enfeites da frente
+//    "teste_suporte"   - pedaco da tampa com os furos do suporte de moto (teste rapido)
 //
 //  Sistema de coordenadas (antes do espelhamento final, ver oriented()):
 //  x = largura, y = altura (y=0 e a base), z = profundidade (z=0 e a face
@@ -27,7 +28,8 @@
 //    lateral esquerda  potenciometro de volume (o "ombro" do BMO)
 //    base              regulador MT3608 de pe
 //    tampa             bateria LiPo (num degrau), modulo microSD e TP4056
-//    costas            encaixe em V para um clipe de metal (de trena), 1 parafuso cego
+//    costas            encaixe em V para um clipe de metal (de trena), 1 parafuso cego,
+//                      e 4 furos para a placa de ganchos do suporte de celular de moto
 //  O cartao microSD e o USB de carga ficam na face de baixo.
 //
 //  MECA SEUS COMPONENTES COM PAQUIMETRO e ajuste os parametros abaixo.
@@ -91,7 +93,7 @@ frame_chamfer = 0.6;
 oled_aa = [21.74, 10.86];// area ativa (pixels)
 oled_win_margin = 0.4;
 wall_win = [26, 15];     // janela atravessando a parede
-oled_pcb = [25, 25];     // medido
+oled_pcb = [25, 25];     // medido; o vidro fica dentro da placa
 oled_aa_dy = 1.1;        // centro dos pixels acima do centro da placa (pinos no topo; estimado)
 oled_rib_h = 4;
 
@@ -128,6 +130,11 @@ name_c = [61, D / 2];    // centro (y, z)
 name_pocket = 1.0;
 name_t = 1.6;            // letras pretas ficam 0,6 mm saltadas
 dots_c = [91, D / 2];    // furinhos (y, z), perto da antena do ESP32
+// Versao do prototipo, gravada pequena logo depois do nome: "BMO ev1".
+version_tag = "ev1";
+version_size = 4;        // altura do texto
+version_depth = 0.6;     // baixo-relevo na parede
+version_gap = 1.2;       // distancia da linha de base das letras
 dots_d = 2.4;
 
 // Potenciometro 16 mm com rosca M7, atravessando a lateral esquerda.
@@ -178,19 +185,32 @@ sd_card_z = inner_back - sd_standoff - sd_pcb_t - sd_card_above_pcb;
 card_hole = [13, 2.6];
 card_recess = [17, 7, 1.5]; // rebaixo externo para pegar o cartao com a unha
 
-// Carregador TP4056 (micro-USB) deitado na tampa, USB virado para a base.
-tp_size = [19, 25];
+// Carregador TP4056 USB-C com protecao (26 x 17 mm, medida publicada pelas
+// lojas) deitado na tampa, USB virado para a base.
+tp_size = [17, 26];
 tp_pos = [33.5, wall];
-tp_standoff = 1;
-tp_port_z = inner_back - tp_standoff - 1.6 - 1.4;
+tp_standoff = 2;         // folga sob a placa: os ganchos do suporte de moto passam por baixo
+tp_usbc_h = 3.2;         // altura do conector USB-C acima da placa
+tp_port_z = inner_back - tp_standoff - 1.6 - tp_usbc_h / 2;
 tp_port_x = tp_pos[0] + tp_size[0] / 2;
-tp_usb_hole = [11, 7];
+tp_usb_hole = [13, 7.5]; // folga para a capa plastica do plugue USB-C
 
 // Regulador MT3608 de pe, colado na parede de baixo, entre a placa dos botoes e a tampa.
 mt_box = [19, wall, 15, 37, 17, 6];   // x, y, z, comprimento, largura (y), altura (z)
 
-sw_c = [53, 36];         // chave liga/desliga SS12D00 na tampa
-sw_slot = [2.4, 6];
+// Chave liga/desliga SS12D07 (vertical, alavanca de 4 mm, curso de 2 mm;
+// corpo 8,6 x 4,3 x 4,7 mm pelo datasheet), colada por dentro da tampa.
+sw_c = [53, 34];
+sw_body = [4.3, 8.6, 4.7];
+sw_slot = [2.4, 5];      // alavanca (~2 mm) + curso de 2 mm + folga
+sw_cradle_h = 3;         // berco em volta da chave (segura o corpo ao empurrar)
+
+// Fixacao extra (sem depender so de cola):
+esp_press_ys = [50, 80]; // nervuras da tampa que encostam na borda de tras do ESP32
+esp_press_gap = 0.3;
+mt_rail_h = 2.5;         // guias na parede de baixo que seguram o MT3608 de pe
+mt_rail_t = 1.2;
+mt_clear = 0.2;
 
 // ---------------- clipe de cinto de metal (costas) ----------------
 // Encaixe para um clipe de metal como o de trena: um rebaixo em V com o
@@ -206,6 +226,27 @@ clip_clear = 0.3;        // folga por lado
 clip_hole_y = 0;         // furo em relacao ao centro do encaixe (+ = para cima)
 clip_pilot_d = 2.5;      // furo guia (parafuso M3 autoatarraxante ou o da trena)
 clip_pilot_depth = 4;    // cego: sobra 1 mm ate o lado de dentro (degrau da bateria)
+
+// ---------------- suporte de celular de moto (costas) ----------------
+// A placa do suporte (45 x 33 mm) tem 4 ganchos quadrados de 3 mm, a 4 mm da
+// borda, com ~2,5 mm de altura. A placa sobe o mais perto possivel do meio
+// das costas, parando logo abaixo da ponta da lamina do clipe de metal: da
+// para prender na moto com o clipe montado.
+// O dente do gancho abraca `mount_grip` mm de tampa: por dentro, em volta de
+// cada furo, a tampa e rebaixada ate essa espessura.
+mount_plate = [45, 33];  // placa do suporte (x, y), deitada
+clip_leaf_l = 45;        // lamina do clipe, do topo do V ate a ponta (A MEDIR)
+mount_leaf_gap = 2;      // folga entre a ponta da lamina e a placa
+// centro da placa: x a 1 mm do meio (a borda passa rente a alavanca da chave),
+// y logo abaixo da lamina, sem passar do meio nem sair pela base
+mount_c = [29, max(mount_plate[1] / 2, min(H / 2,
+    clip_c[1] + clip_guide_h / 2 - clip_leaf_l - mount_leaf_gap - mount_plate[1] / 2))];
+mount_tab = 3;           // gancho quadrado
+mount_inset = 4;         // da borda da placa ate o gancho
+mount_tab_h = 2.5;       // altura do gancho (aproximada)
+mount_clear = 0.15;      // folga por lado no furo
+mount_grip = 1.4;        // espessura que o dente abraca (meca a placa da bolsa original)
+mount_lip = 1.2;         // espaco para o dente, acima e abaixo de cada furo
 
 // =====================================================================
 //  utilidades 2D
@@ -274,6 +315,7 @@ module front_shell() {
             }
             oled_ribs();
             esp32_supports();
+            mt3608_rails();
             pot_boss();
             for (p = btn_posts)
                 translate([p[0], p[1], 0]) cylinder(d = post_d, h = board_z);
@@ -310,6 +352,12 @@ module front_shell() {
         for (side = [0, 1]) {
             on_side(side, name_c) translate([0, 0, -name_pocket]) linear_extrude(name_pocket + 0.01) name2d();
             on_side(side, dots_c) translate([0, 0, -wall - 1]) linear_extrude(wall + 2) dots2d();
+            // versao: alinhada ao fim do nome, logo abaixo da linha das letras
+            on_side(side, name_c)
+                translate([name_size[0] / 2, -name_size[1] / 2 - version_gap, -version_depth])
+                    linear_extrude(version_depth + 0.01)
+                        text(version_tag, size = version_size, font = name_font,
+                             halign = "right", valign = "top");
         }
         pot_cut();
 
@@ -348,6 +396,18 @@ module oled_ribs() {
 }
 
 // ESP32 de pe na parede direita: dois batentes na frente e um apoio embaixo.
+// Guias do MT3608: um degrau na frente (apoiado ate a frente, imprime sem
+// suporte) e um trilho atras, prendendo a borda de baixo da placa.
+module mt3608_rails() {
+    x0 = mt_box[0] + 3;
+    len = mt_box[3] - 6;
+    y0 = wall - 0.01;
+    // na frente da placa: bloco cheio ate a face da frente
+    translate([x0, y0, front_t - 0.01]) cube([len, mt_rail_h, mt_box[2] - mt_clear - front_t + 0.01]);
+    // atras da placa
+    translate([x0, y0, mt_box[2] + mt_box[5] + mt_clear]) cube([len, mt_rail_h, mt_rail_t]);
+}
+
 module esp32_supports() {
     x0 = esp_pcb_x - 0.7;
     xw = W - wall - x0 + 0.01;
@@ -375,7 +435,9 @@ function lid_z(h) = lid_t + h;
 
 module open_frame(pos, size, h, open_bottom = true) {
     linear_extrude(h) difference() {
-        translate(pos - [bay_wall, bay_wall]) square(size + [2 * bay_wall, 2 * bay_wall]);
+        // aberta embaixo: nao passa da borda (senao entra na parede de baixo da caixa)
+        translate(pos - [bay_wall, open_bottom ? 0 : bay_wall])
+            square(size + [2 * bay_wall, open_bottom ? bay_wall : 2 * bay_wall]);
         translate(pos) square(size);
         // lado de baixo aberto: por ali saem o cartao e o USB
         if (open_bottom) translate([pos[0], pos[1] - bay_wall - 1]) square([size[0], bay_wall + 2]);
@@ -407,6 +469,16 @@ module lid() {
                 open_frame(sd_pos, sd_pcb + [0.4, 0.4], sd_standoff + sd_pcb_t + 1);
                 for (x = [sd_pos[0] + 0.5, sd_pos[0] + sd_pcb[0] - 2])
                     translate([x, sd_pos[1], 0]) cube([1.5, sd_pcb[1], sd_standoff]);
+                // nervuras que encostam na borda de tras do ESP32 (seguram a placa
+                // contra os batentes da frente quando a tampa fecha)
+                for (y = esp_press_ys)
+                    translate([esp_pcb_x - 0.5, y, 0])
+                        cube([esp_pcb_t + 1, 8, inner_back - (esp_z0 + esp_w + esp_press_gap)]);
+                // berco da chave liga/desliga
+                linear_extrude(sw_cradle_h) difference() {
+                    translate([sw_c[0], sw_c[1]]) square([sw_body[0], sw_body[1]] + [0.4, 0.4] + [2, 2] * bay_wall, center = true);
+                    translate([sw_c[0], sw_c[1]]) square([sw_body[0], sw_body[1]] + [0.4, 0.4], center = true);
+                }
                 // moldura do TP4056 + apoios
                 open_frame(tp_pos, tp_size + [0.4, 0.4], tp_standoff + 1.6 + 0.5);
                 for (x = [tp_pos[0] + 0.5, tp_pos[0] + tp_size[0] - 2])
@@ -422,6 +494,8 @@ module lid() {
         translate([clip_c[0], clip_c[1], -1]) linear_extrude(clip_recess + 1) clip_guide2d();
         translate([clip_c[0], clip_c[1] + clip_hole_y, -1])
             cylinder(d = clip_pilot_d, h = 1 + clip_recess + clip_pilot_depth);
+        // ganchos do suporte de celular de moto
+        mount_holes();
     }
 }
 
@@ -471,6 +545,30 @@ module knob_part() {
     }
 }
 
+// Furos dos ganchos do suporte de moto (no sistema da tampa: face externa em z=0).
+function mount_tabs() = [for (sx = [-1, 1]) for (sy = [-1, 1])
+    mount_c + [sx * (mount_plate[0] / 2 - mount_inset - mount_tab / 2),
+               sy * (mount_plate[1] / 2 - mount_inset - mount_tab / 2)]];
+
+module mount_holes() {
+    s = mount_tab + 2 * mount_clear;
+    top = lid_t + 1;   // a ponta do gancho passa ~0,5 mm da face interna
+    for (t = mount_tabs()) translate(t) {
+        translate([-s / 2, -s / 2, -1]) cube([s, s, top + 1]);
+        // rebaixo interno para o dente (dos dois lados, em y)
+        translate([-s / 2, -s / 2 - mount_lip, mount_grip]) cube([s, s + 2 * mount_lip, top - mount_grip]);
+    }
+}
+
+// Pedaco de tampa com os 4 furos, para testar o encaixe na moto antes de imprimir a tampa.
+module mount_test_part() {
+    m = 4;
+    difference() {
+        translate(mount_c - mount_plate / 2 - [m, m]) cube([mount_plate[0] + 2 * m, mount_plate[1] + 2 * m, lid_t]);
+        mount_holes();
+    }
+}
+
 // Formato da base do clipe de metal: largo em cima, afinando em V para baixo.
 module clip_guide2d() {
     offset(delta = clip_clear) polygon([
@@ -500,9 +598,9 @@ module ghosts() {
     color("blue", 0.6) translate([sd_pos[0], sd_socket_y, inner_back - sd_standoff - sd_pcb_t - 3.5])
         cube([sd_pcb[0], sd_pcb[1] + sd_socket_out, sd_pcb_t + 3.5]);
     color("black", 0.8) translate([sd_x_card - 5.5, 0, sd_card_z - 0.4]) cube([11, 15, 0.8]);   // cartao
-    color("red", 0.5) translate([tp_pos[0], tp_pos[1], inner_back - tp_standoff - 4.6]) cube([tp_size[0], tp_size[1], 4.6]);
+    color("red", 0.5) translate([tp_pos[0], tp_pos[1], inner_back - tp_standoff - 1.6 - tp_usbc_h]) cube([tp_size[0], tp_size[1], 1.6 + tp_usbc_h]);
     color("purple", 0.5) translate([mt_box[0], mt_box[1], mt_box[2]]) cube([mt_box[3], mt_box[4], mt_box[5]]);
-    color("white", 0.7) translate([sw_c[0] - 1.8, sw_c[1] - 4.3, inner_back - 3.7]) cube([3.6, 8.6, 3.7]);
+    color("white", 0.7) translate([sw_c[0] - sw_body[0] / 2, sw_c[1] - sw_body[1] / 2, inner_back - sw_body[2]]) cube(sw_body);
 }
 
 module assembly() {
@@ -545,4 +643,5 @@ oriented() {
     else if (part == "cruz")      inlay() dpad_pos();
     else if (part == "triangulo") inlay() tri_pos();
     else if (part == "bolinha")   inlay() dot_pos();
+    else if (part == "teste_suporte") mount_test_part();
 }

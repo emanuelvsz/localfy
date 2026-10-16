@@ -11,7 +11,7 @@ LiPo achatada.
 > variáveis no topo do `.scad` (principalmente `esp_w`, `esp_l`, `oled_pcb`,
 > `oled_aa_dy`, `sd_pcb`, `sd_x_card`, `tp_size`, `tact_h`, `pot_boss_t`).
 > Já medidos: ESP32 53 × 28 mm, OLED 25 × 25 mm, microSD 20 × 20 mm (soquete +3 mm, cartão +5 mm),
-> tact switch 12 × 12 × 7,3 mm. Falta conferir: comprimento da rosca do potenciômetro (`pot_boss_t`, hoje 7 mm).
+> tact switch 12 × 12 × 7,3 mm; vidro do OLED dentro da placa. Pelas lojas/datasheet: TP4056 USB-C 26 × 17 mm, chave SS12D07 8,6 × 4,3 × 4,7 mm. Falta conferir: comprimento da rosca do potenciômetro (`pot_boss_t`, hoje 7 mm).
 > Para gerar um STL de novo: `openscad -D 'part="frente"' -o stl/frente.stl bmo_case.scad`
 
 ## O que vai onde
@@ -24,9 +24,9 @@ LiPo achatada.
 | Tracinhos **azuis** | Voltar / passar (abrem a lista de músicas) |
 | Fenda das fitas, cruz, triângulo, bolinha | Decorativos |
 | Ombro esquerdo | Knob do **volume** (potenciômetro atravessando a lateral) |
-| Laterais | "BMO" em preto e furinhos. Na direita lê de cima para baixo, na esquerda de baixo para cima |
+| Laterais | "BMO" em preto, a versão "ev1" gravada pequena logo depois e os furinhos. Na direita lê de cima para baixo, na esquerda de baixo para cima (para trocar a versão: `version_tag`) |
 | Base | Entrada do **cartão microSD** (com rebaixo para a unha) e **USB de carga** |
-| Tampa | Chave liga/desliga, 4 parafusos M2 pelas laterais e o encaixe do **clipe de cinto** |
+| Tampa | Chave liga/desliga, 4 parafusos M2 pelas laterais, o encaixe do **clipe de cinto** e os 4 furos do **suporte de celular de moto** |
 
 ## Organização interna
 
@@ -46,7 +46,7 @@ LiPo achatada.
   o USB para baixo (dentro) e a **antena no alto, ao lado dos furinhos**.
   Ele se apoia em um batente embaixo e em dois batentes na frente.
 - **Lateral esquerda:** potenciômetro preso pela porca, o eixo sai no "ombro".
-- **Base:** regulador MT3608 em pé, colado com fita dupla face.
+- **Base:** regulador MT3608 em pé, entre as guias, com fita dupla face.
 - **Tampa:** bateria LiPo num berço sobre um degrau de 4 mm (metade de cima), módulo microSD e
   carregador TP4056 deitados em molduras (metade de baixo), com o soquete e o
   USB virados para os furos da base.
@@ -54,6 +54,21 @@ LiPo achatada.
 Com as medidas típicas dos módulos, nenhum componente encosta na case nem em
 outro componente (conferido por interseção no OpenSCAD em 05/10/2026). Se as
 medidas reais forem diferentes, ajuste os parâmetros e confira na `montagem`.
+
+## Como cada componente fica preso
+
+| Componente | Fixação |
+|---|---|
+| Botões impressos | presos entre a parede e o switch pela aba |
+| Placa dos 4 botões | 4 pinos com furo para parafuso M2 (ou cola quente) |
+| Potenciômetro | porca apertada por fora da lateral |
+| OLED | 4 cantoneiras + um ponto de cola quente em cada canto |
+| ESP32 | batente embaixo, 2 batentes na frente e **2 nervuras da tampa** que encostam atrás quando ela fecha |
+| Suporte de moto | 4 ganchos da placa do suporte nos furos das costas |
+| MT3608 | **guias na parede de baixo** (de pé, entre um degrau e um trilho) + fita dupla face |
+| Bateria | berço na tampa + fita dupla face |
+| microSD e carregador | molduras na tampa (seguram o empurrão do cartão e do plugue) + um ponto de cola |
+| Chave liga/desliga | **berço em volta do corpo** na tampa + um ponto de cola |
 
 ## Peças para imprimir
 
@@ -67,6 +82,7 @@ medidas reais forem diferentes, ajuste os parâmetros e confira na `montagem`.
 | `vermelho.stl` | vermelho | 1 | aba na mesa |
 | `verde.stl` | verde | 1 | aba na mesa |
 | `pilula.stl` | azul | **2** | aba na mesa |
+| `teste_suporte.stl` | qualquer | 1 | plana; teste rápido do encaixe no suporte de moto |
 | `knob.stl` (opcional: dá para usar um knob de guitarra) | preto | 1 | topo na mesa (já está assim) |
 | `cruz.stl` / `triangulo.stl` / `bolinha.stl` | amarelo / azul-claro / azul | 1 cada | plana |
 
@@ -93,6 +109,30 @@ As costas têm um encaixe para um **clipe de metal de trena**, preso por um para
 - Se o seu clipe tiver outra medida, ajuste `clip_top_w`, `clip_bottom_w`,
   `clip_guide_h` e `clip_hole_y` (posição do furo) no início do `bmo_case.scad`.
 
+## Suporte de celular de moto
+
+As costas têm 4 furos para a placa de ganchos dos suportes de celular de moto
+(aqueles da bolsa impermeável): placa de 45 × 33 mm com 4 ganchos de 3 × 3 mm
+a 4 mm da borda e ~2,5 mm de altura. O BMO entra no lugar da bolsa.
+
+- A placa fica **deitada**, centralizada na largura e o mais alto possível,
+  parando 2 mm abaixo da ponta da lâmina do clipe de metal. Com o clipe montado,
+  dá para prender na moto do mesmo jeito. A altura é calculada a partir de
+  `clip_leaf_l`, o comprimento da lâmina medido do topo do V até a ponta (hoje
+  está estimado em 45 mm). Testado sem colisão com lâminas de 25 a 55 mm.
+- Os furos têm 3,3 mm. Por dentro, em volta de cada furo, a tampa é rebaixada
+  até **1,4 mm** (`mount_grip`), a espessura que o dente do gancho abraça.
+  O rebaixo fica acima e abaixo de cada furo, então funciona com o dente virado
+  para qualquer um dos dois lados.
+- A ponta dos ganchos entra ~0,5 mm no interior, por baixo do módulo microSD
+  e do TP4056. Por isso o TP4056 fica 2 mm acima da tampa (`tp_standoff`).
+- **Teste antes:** imprima o `teste_suporte.stl`, que é um pedaço da tampa com os
+  4 furos e leva ~10 minutos, e encaixe na moto. Se ficar frouxo, diminua
+  `mount_grip`. Se não entrar, aumente `mount_grip` ou `mount_clear`. O ideal é
+  medir com o paquímetro a espessura da placa da bolsa original nos furos e usar
+  esse valor.
+- A chave liga/desliga continua acessível com o BMO no suporte.
+
 ## Base de mesa
 
 [bmo_base.scad](bmo_base.scad) gera uma base (84 × 64 × 24 mm) onde o BMO
@@ -116,9 +156,9 @@ então acompanha qualquer ajuste feito no `bmo_case.scad`.
 | 4 × tact switch **12×12×7,3 mm** (pino quadrado) | Todos na mesma perfboard, centralizados sob os botões |
 | Potenciômetro com **rosca e porca** e eixo serrilhado de 6 mm | Use um **knob de guitarra** (encaixa nesse eixo) ou o `knob.stl` |
 | Bateria LiPo **103450** (34×50×10 mm) com proteção e plugue JST-PH | |
-| Módulo **TP4056 com proteção** (micro-USB) | Carregador |
+| Módulo **TP4056 com proteção, USB-C** (26 × 17 mm) | Carregador |
 | Módulo **MT3608** | Elevador de tensão para 5 V |
-| Chave deslizante SS12D00 | Liga/desliga |
+| Chave deslizante **SS12D07** vertical (alavanca 4 mm) | Liga/desliga, colada por dentro da tampa |
 | 4 × parafuso M2 × 6 mm autoatarraxante | Tampa |
 | Clipe de metal de trena + parafuso ~3 mm × até 5 mm | Costas |
 
@@ -163,8 +203,8 @@ Todos os botões usam o pull-up interno: basta ligar entre o pino e o GND, sem r
 3. Parafuse ou cole a perfboard dos botões nos 4 pinos.
 4. Passe o potenciômetro por dentro da lateral esquerda, aperte a porca por fora e encaixe o knob.
 5. Encaixe o OLED nas cantoneiras, com o vidro encostado na parede, e fixe com cola quente.
-6. Encaixe o ESP32 de pé na lateral direita, apoiado no batente de baixo.
-7. Cole o MT3608 em pé na base, já regulado em 5 V.
-8. Na tampa: bateria no berço (fita dupla face), microSD e TP4056 nas molduras e a chave na fenda.
+6. Encaixe o ESP32 de pé na lateral direita, apoiado no batente de baixo (as nervuras da tampa o travam quando ela fecha).
+7. Deslize o MT3608 em pé entre as guias da base, já regulado em 5 V, com fita dupla face.
+8. Na tampa: bateria no berço (fita dupla face), microSD e TP4056 nas molduras e a chave no berço, com a alavanca na fenda.
    Por fora, encaixe o clipe de metal no rebaixo em V e parafuse.
 9. Feche e aperte os 4 parafusos M2 pelas laterais. Teste o cartão e o USB de carga pela base.

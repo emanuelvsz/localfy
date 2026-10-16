@@ -17,6 +17,15 @@ void previous();           // como no Spotify: volta ao inicio se ja passou de 3
 void seek(uint32_t secs);
 
 void setVolume(uint8_t percent);
+
+// Fila: de onde vem a proxima faixa (proxima/anterior e o fim de cada faixa).
+// filter = library::ALL, library::ROOT ou o indice da pasta. A escolha fica
+// salva e vale nos proximos boots.
+void setQueue(int filter, bool shuffle);
+int queueFilter();
+bool shuffle();
+void loadQueue();          // le a fila salva; chamar depois de library::scan()
+void onLibraryChanged();   // a biblioteca foi relida (upload, exclusao, pastas)
 uint8_t volume();
 
 void onLinkLost();         // o fone desconectou

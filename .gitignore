@@ -2,3 +2,6 @@
 src/config/secrets.h
 data/
 artigo
+# saidas das ferramentas
+tools/faltando.csv
+__pycache__/

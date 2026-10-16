@@ -17,4 +17,6 @@ void load();
 const Meta *find(const String &file);
 void set(const String &file, const String &artist, const String &genre);
 const std::vector<Meta> &all();
+// A musica mudou de nome ou de pasta: os metadados vao junto.
+void rename(const String &from, const String &to);
 }  // namespace meta

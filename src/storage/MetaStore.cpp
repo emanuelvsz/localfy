@@ -75,3 +75,10 @@ void meta::set(const String &file, const String &artist, const String &genre) {
 }
 
 const std::vector<Meta> &meta::all() { return s_meta; }
+
+void meta::rename(const String &from, const String &to) {
+  Meta *m = findMutable(from);
+  if (!m) return;
+  m->file = to;
+  save();
+}

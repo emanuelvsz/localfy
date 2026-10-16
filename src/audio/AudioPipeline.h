@@ -14,8 +14,9 @@ namespace pipeline {
 
 struct OpenResult {
   bool ok = false;
-  uint32_t durationSecs = 0;   // estimativa inicial (0 = desconhecida)
-  uint32_t sizeBytes = 0;
+  uint32_t durationSecs = 0;   // 0 = desconhecida
+  bool durationExact = false;  // do cabecalho; nao precisa ser refinada
+  uint32_t sizeBytes = 0;     // bytes de audio (sem cabecalho/etiqueta)
 };
 
 // Reserva o decoder MP3 uma unica vez, cedo no boot: depois que a pilha
@@ -31,8 +32,13 @@ void close();                        // fecha o arquivo e descarta o buffer
 bool finished();                     // arquivo lido ate o fim e buffer vazio
 void seek(uint32_t bytePos, uint32_t secs);
 
-uint32_t filePosition();
+uint32_t filePosition();             // bytes de audio ja lidos (sem a etiqueta)
 uint64_t framesPlayed();             // quadros entregues ao fone (relogio do player)
+
+// Volume 0..100 aplicado nas amostras antes de irem ao fone. Nada vai pelo
+// radio: o comando de volume do Bluetooth (AVRCP) a cada passo do knob
+// inundava o fone, que derrubava a conexao, e gastava a RAM da pilha.
+void setVolume(uint8_t percent);
 
 // Chamado pela task do Bluetooth pedindo 'bytes' de PCM. Entrega o que houver
 // e completa com silencio: nunca bloqueia, pois essa task tem prazo rigido.

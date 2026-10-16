@@ -48,9 +48,47 @@ void startBluetoothMode() {
   bluetooth::requestStart();   // o loop liga o radio e conecta no fone
 }
 
-// Modo Web: Wi-Fi + servidor; o Bluetooth fica desligado.
+// Comandos de diagnostico pelo Monitor Serial (uma palavra por linha):
+//   fim   pula para 5 s antes do fim da faixa (testa a troca automatica)
+//   prox  proxima faixa      ant  faixa anterior
+//   info  faixa, posicao, fila e memoria
+void handleSerialCommand() {
+  static String line;
+  while (Serial.available()) {
+    char c = (char)Serial.read();
+    if (c != '\n' && c != '\r') {
+      if (line.length() < 32) line += c;
+      continue;
+    }
+    line.trim();
+    if (line.isEmpty()) continue;
+    Serial.printf("[CMD] %s\n", line.c_str());
+    {
+      Guard g;
+      if (line == "fim") {
+        uint32_t d = player::durationSecs();
+        if (d > 6) player::seek(d - 5);
+      } else if (line == "prox") {
+        player::next();
+      } else if (line == "ant") {
+        player::previous();
+      } else if (line == "info") {
+        int i = player::currentIndex();
+        Serial.printf("[CMD] faixa %d %s | %lus/%lus | %s | fila %s%s | heap %u\n", i,
+                      i >= 0 ? library::nameOf(i).c_str() : "-",
+                      (unsigned long)player::positionSecs(), (unsigned long)player::durationSecs(),
+                      player::isPlaying() ? "tocando" : "parado",
+                      library::filterLabel(player::queueFilter()).c_str(),
+                      player::shuffle() ? " aleatorio" : "", (unsigned)ESP.getFreeHeap());
+      }
+    }
+    line = "";
+  }
+}
+
+// Modo Web: rede propria do Localfy + servidor; o Bluetooth fica desligado.
 void startWebMode() {
-  wifilink::connect();
+  wifilink::startAccessPoint();
   diag::heapMark("apos Wi-Fi");
   webserver::begin();
   diag::heapMark("apos servidor");
@@ -87,6 +125,7 @@ void setup() {
 
   if (storage::begin()) {
     library::scan();
+    player::loadQueue();
     diag::heapMark("apos biblio");
     meta::load();
     diag::heapMark("apos meta");
@@ -102,6 +141,8 @@ void loop() {
   diag::tick();
   app::update();
   bluetooth::poll();
+  wifilink::poll();   // DNS que abre a interface sozinha no celular
+  handleSerialCommand();
   player::tick();
   delay(5);
   app::render();

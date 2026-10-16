@@ -14,8 +14,6 @@
 namespace cfg {
 
 constexpr const char *DEVICE_NAME = "Localfy";
-constexpr const char *WIFI_SSID = LOCALFY_WIFI_SSID;
-constexpr const char *WIFI_PASS = LOCALFY_WIFI_PASS;
 
 #ifdef LOCALFY_BT_TARGET
 constexpr const char *BT_TARGET = LOCALFY_BT_TARGET;
@@ -60,7 +58,7 @@ namespace oled {
 constexpr uint8_t ADDRESS = 0x3C;
 constexpr int WIDTH = 128;
 constexpr int HEIGHT = 64;
-constexpr int LIST_ROWS = 4;            // faixas por pagina na lista
+constexpr int LIST_ROWS = 4;            // itens por pagina na lista (abaixo da trilha "Biblioteca > Pasta")
 constexpr uint32_t REFRESH_MS = 400;    // ~2,5 fps: suficiente e poupa CPU
 }  // namespace oled
 
@@ -69,7 +67,11 @@ constexpr uint32_t REFRESH_MS = 400;    // ~2,5 fps: suficiente e poupa CPU
 // -----------------------------------------------------------------------------
 namespace ui {
 constexpr uint32_t DEBOUNCE_MS = 220;          // contatos mecanicos oscilam ao fechar
-constexpr uint32_t LONG_PRESS_MS = 3000;       // segurar "proxima" na lista = tocar
+constexpr uint32_t LONG_PRESS_MS = 3000;       // segurar o vermelho = escolher o fone
+constexpr uint32_t ARROW_HOLD_MS = 600;        // segurar um azul na lista = pular uma pagina
+constexpr uint32_t ARROW_REPEAT_MS = 350;      // continuando a segurar: mais uma pagina
+constexpr uint32_t STANDBY_HOLD_MS = 3000;     // segurar o verde = standby (cara do BMO)
+constexpr uint32_t STANDBY_REFRESH_MS = 120;   // mais rapido que as outras telas: a piscada e curta
 constexpr uint32_t LIBRARY_TIMEOUT_MS = 8000;  // lista volta ao player se ociosa
 constexpr uint32_t CONFIRM_TIMEOUT_MS = 10000; // pergunta de troca de modo expira
 constexpr uint32_t VOLUME_OVERLAY_MS = 1500;   // "Volume 45%" na barra de cima
@@ -101,7 +103,7 @@ constexpr uint32_t SD_FREQS_HZ[] = {20000000, 10000000, 4000000};
 // reserva buffers que fazem falta ao Bluetooth.
 constexpr uint8_t SD_MAX_FILES = 2;
 constexpr size_t MAX_SONGS = 256;
-constexpr size_t MAX_NAME_LEN = 64;
+constexpr size_t MAX_NAME_LEN = 112;   // "Pasta do artista/arquivo.mp3"
 }  // namespace sd
 
 // -----------------------------------------------------------------------------
@@ -136,11 +138,10 @@ constexpr size_t MAX_DEVICES = 20;
 }  // namespace bt
 
 namespace net {
-constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 10000;
+// Rede criada pelo proprio Localfy no modo Web (a senha precisa ter 8+ caracteres).
+constexpr const char *AP_SSID = "Localfy";
+constexpr const char *AP_PASS = "Localfy271003!";
 constexpr long GMT_OFFSET_SEC = -3 * 3600;   // Brasil, sem horario de verao
-constexpr int DST_OFFSET_SEC = 0;
-constexpr const char *NTP_SERVER_1 = "pool.ntp.org";
-constexpr const char *NTP_SERVER_2 = "a.st1.ntp.br";
 }  // namespace net
 
 namespace sys {

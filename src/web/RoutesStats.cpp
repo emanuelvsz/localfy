@@ -3,6 +3,7 @@
 // As estatisticas varrem o history.csv linha a linha, sem carregar o arquivo
 // na RAM: ele cresce para sempre e nao caberia.
 #include <SD.h>
+#include <sys/time.h>
 #include <time.h>
 
 #include <algorithm>
@@ -144,6 +145,26 @@ void sendMonthly(AsyncWebServerRequest *req, JsonDocument &body) {
 }  // namespace
 
 void routes::registerStats(AsyncWebServer &server) {
+  // A rede do Localfy nao tem internet (sem NTP): a interface manda a hora do
+  // celular ao abrir, para o historico ter data.
+  http::onJsonPost(server, "/api/time", [](AsyncWebServerRequest *req, JsonDocument &doc) {
+    long epoch = doc["epoch"] | 0L;
+    if (epoch < 1600000000L) {
+      http::sendError(req, 400, "hora invalida");
+      return;
+    }
+    timeval tv{epoch, 0};
+    settimeofday(&tv, nullptr);
+    // Fuso fixo de Config.h, no formato POSIX ("<-03>3" para UTC-3).
+    char tz[16];
+    int h = (int)(cfg::net::GMT_OFFSET_SEC / 3600);
+    snprintf(tz, sizeof(tz), "<%+03d>%d", h, -h);
+    setenv("TZ", tz, 1);
+    tzset();
+    Serial.printf("[TIME] relogio acertado pela interface (%ld)\n", epoch);
+    http::sendOk(req);
+  });
+
   server.on("/api/history.csv", HTTP_GET, [](AsyncWebServerRequest *req) {
     if (!SD.exists(cfg::path::HISTORY)) {
       http::sendError(req, 404, "sem historico");

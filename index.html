@@ -491,6 +491,53 @@
       }
 
       /* ---------- Bottom player ---------- */
+      /* O aparelho nao toca audio no modo Web (o Bluetooth fica desligado):
+         a interface e so gerenciadora. Player e Bluetooth ficam escondidos. */
+      .player,
+      #btChip {
+        display: none !important;
+      }
+      .folders {
+        flex-wrap: wrap;
+        border-radius: 14px;
+        margin: 0 0 12px;
+      }
+      .folders .new {
+        color: var(--green);
+      }
+      .queue {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        background: var(--card2);
+        border-radius: 12px;
+        padding: 10px 14px;
+        margin: 0 0 12px;
+        font-size: 13px;
+        color: var(--txt2);
+      }
+      .queue b {
+        color: var(--txt);
+      }
+      .queue select {
+        background: var(--card);
+        color: var(--txt);
+        border-radius: 6px;
+        padding: 6px 8px;
+        font-size: 13px;
+        border: 1px solid var(--line);
+      }
+      .queue label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+      }
+      .tag.fold {
+        background: var(--card3);
+        color: var(--txt);
+      }
       .player {
         flex: 0 0 auto;
         background: var(--card);
@@ -1029,6 +1076,17 @@
           <!-- Upload -->
           <section class="card">
             <h2>Enviar músicas</h2>
+            <div class="field">
+              <label for="upFolder">Pasta do artista</label>
+              <input
+                id="upFolder"
+                list="folderList"
+                maxlength="48"
+                placeholder="Ex.: Sabrina Carpenter (vazio = sem pasta)"
+                autocomplete="off"
+              />
+            </div>
+            <datalist id="folderList"></datalist>
             <div class="drop" id="drop">
               <svg viewBox="0 0 24 24">
                 <path d="M12 3l5 5h-3v6h-4V8H7l5-5zM5 18h14v2H5z" />
@@ -1068,6 +1126,13 @@
                   autocomplete="off"
                 />
               </label>
+            </div>
+            <div class="tabs folders" id="folders"></div>
+            <div class="queue">
+              <b>Fila do aparelho</b>
+              <select id="qFolder" title="De qual pasta vem a próxima música"></select>
+              <label><input type="checkbox" id="qShuffle" /> Aleatório</label>
+              <span style="font-size: 11px">vale no modo Bluetooth</span>
             </div>
             <div class="songs" id="songs"></div>
           </section>
@@ -1186,6 +1251,16 @@
             <input id="metaArtist" maxlength="64" placeholder="Ex.: Dave Brubeck" />
           </div>
           <div class="field">
+            <label for="metaFolder">Pasta (artista)</label>
+            <input
+              id="metaFolder"
+              list="folderList"
+              maxlength="48"
+              placeholder="Vazio = sem pasta"
+              autocomplete="off"
+            />
+          </div>
+          <div class="field">
             <label for="metaGenre">Genero</label>
             <input id="metaGenre" maxlength="32" placeholder="Ex.: Jazz" />
             <div class="chips" id="genreChips"></div>
@@ -1234,7 +1309,8 @@
         return (b / 1048576).toFixed(1) + " MB";
       };
       const ext = (n) => (n.split(".").pop() || "").toLowerCase();
-      const baseName = (n) => n.replace(/\.[^.]+$/, "");
+      // "Pasta/Musica.mp3" -> "Musica"
+      const baseName = (n) => n.split("/").pop().replace(/\.[^.]+$/, "");
 
       function toast(msg, bad) {
         const t = el("div", "toast" + (bad ? " bad" : ""));
@@ -1270,7 +1346,9 @@
       const Mock = {
         lat: 90, // latência simulada (ms)
         songs: [
-          { name: "Bohemian Rhapsody.mp3", size: 8912345, duration: 355, artist: "Queen", genre: "Rock" },
+          { name: "Queen/Bohemian Rhapsody.mp3", folder: "Queen", size: 8912345, duration: 355, artist: "Queen", genre: "Rock" },
+          { name: "Sabrina Carpenter/Espresso.mp3", folder: "Sabrina Carpenter", size: 5211044, duration: 175, artist: "Sabrina Carpenter", genre: "Pop" },
+          { name: "Sabrina Carpenter/Please Please Please.mp3", folder: "Sabrina Carpenter", size: 5502100, duration: 186, artist: "Sabrina Carpenter", genre: "Pop" },
           { name: "Take Five.mp3", size: 6210044, duration: 324, artist: "Dave Brubeck", genre: "Jazz" },
           { name: "Sample Loop 44k.wav", size: 15872000, duration: 90, artist: "", genre: "" },
           { name: "Clair de Lune.mp3", size: 7104512, duration: 301, artist: "Debussy", genre: "Classica" },
@@ -1293,6 +1371,8 @@
           volume: 60,
         },
         found: [],
+        folders: ["Queen", "Sabrina Carpenter"],
+        queue: { folder: "", shuffle: false },
         history: [],
         tick: 0,
         // Historico sintetico de 90 dias. Sem isto o modo de testes comecaria
@@ -1384,13 +1464,30 @@
           switch (path) {
             case "/api/songs":
               return {
-                songs: this.songs.map(({ name, size, artist, genre }) => ({
+                songs: this.songs.map(({ name, size, artist, genre, folder }) => ({
                   name,
                   size,
+                  folder: folder || "",
                   artist: artist || "",
                   genre: genre || "",
                 })),
+                folders: [...this.folders].sort(),
               };
+            case "/api/queue":
+              if (method === "POST") this.queue = { folder: b.folder || "", shuffle: !!b.shuffle };
+              return this.queue;
+            case "/api/folder":
+              if (!this.folders.includes(b.name)) this.folders.push(b.name);
+              return { ok: true };
+            case "/api/move": {
+              const s = this.songs.find((x) => x.name === b.file);
+              if (!s) throw new Error("404");
+              const file = s.name.split("/").pop();
+              s.folder = b.folder || "";
+              s.name = s.folder ? s.folder + "/" + file : file;
+              if (s.folder && !this.folders.includes(s.folder)) this.folders.push(s.folder);
+              return { ok: true };
+            }
             case "/api/meta": {
               const s = this.songs.find((x) => x.name === b.file);
               if (!s) throw new Error("404");
@@ -1521,8 +1618,9 @@
           throw new Error("404 " + path);
         },
         // upload falso: progresso incremental sem rede
-        upload(file, onProgress, onDone, onError) {
-          if (this.songs.some((s) => s.name === file.name))
+        upload(file, onProgress, onDone, onError, folder) {
+          const name = folder ? folder + "/" + file.name : file.name;
+          if (this.songs.some((s) => s.name === name))
             return setTimeout(() => onError("Já existe"), 300);
           let sent = 0;
           const chunk = Math.max(file.size / 28, 1);
@@ -1531,8 +1629,10 @@
             onProgress(sent, file.size);
             if (sent >= file.size) {
               clearInterval(t);
+              if (folder && !this.folders.includes(folder)) this.folders.push(folder);
               this.songs.push({
-                name: file.name,
+                name,
+                folder: folder || "",
                 size: file.size,
                 duration: 30 + Math.floor(Math.random() * 240),
               });
@@ -1579,6 +1679,9 @@
       /* ========= state ========= */
       const S = {
         songs: [],
+        folders: [],
+        folder: null, // pasta filtrada: null = todas, "/" = sem pasta
+        queue: { folder: "", shuffle: false },
         filter: "all",
         query: "",
         status: {},
@@ -1594,6 +1697,11 @@
         try {
           const d = await api("/api/songs");
           S.songs = Array.isArray(d) ? d : d.songs || [];
+          S.folders =
+            d.folders || [...new Set(S.songs.map((s) => s.folder).filter(Boolean))].sort();
+          if (S.folder && S.folder !== "/" && !S.folders.includes(S.folder)) S.folder = null;
+          renderFolders();
+          renderQueue();
           renderSongs();
         } catch (e) {
           toast("Falha ao listar músicas", true);
@@ -1605,6 +1713,8 @@
         return S.songs.filter((s) => {
           const e = ext(s.name);
           if (S.filter !== "all" && e !== S.filter) return false;
+          if (S.folder === "/" && s.folder) return false;
+          if (S.folder && S.folder !== "/" && s.folder !== S.folder) return false;
           if (!q) return true;
           return (
             s.name.toLowerCase().includes(q) ||
@@ -1641,12 +1751,6 @@
           const e = ext(s.name);
           const row = el("div", "song" + (s.name === cur ? " now" : ""));
 
-          const pb = el("button", "pbtn");
-          pb.title = "Tocar";
-          pb.innerHTML =
-            '<svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg>';
-          pb.onclick = () => playFile(s.name);
-
           const meta = el("div", "meta");
           const t = el("div", "t");
           t.textContent = baseName(s.name);
@@ -1658,6 +1762,11 @@
           );
           tag.textContent = e.toUpperCase();
           sub.appendChild(tag);
+          if (s.folder && S.folder === null) {
+            const fd = el("span", "tag fold");
+            fd.textContent = s.folder;
+            sub.appendChild(fd);
+          }
           const sz = el("span");
           sz.textContent = fmtSize(s.size);
           sub.appendChild(sz);
@@ -1674,7 +1783,7 @@
           meta.append(t, sub);
 
           const edit = el("button", "del");
-          edit.title = "Editar artista / genero";
+          edit.title = "Editar pasta, artista e genero";
           edit.innerHTML =
             '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
           edit.onclick = () => openMeta(s.name);
@@ -1685,10 +1794,97 @@
             '<svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7z"/></svg>';
           del.onclick = () => delFile(s.name);
 
-          row.append(pb, meta, edit, del);
+          row.append(meta, edit, del);
           frag.appendChild(row);
         }
         box.appendChild(frag);
+      }
+
+      /* ========= pastas e fila ========= */
+      function renderFolders() {
+        const box = $("#folders");
+        box.textContent = "";
+        const roots = S.songs.filter((s) => !s.folder).length;
+        const items = [[null, "Todas", S.songs.length]];
+        if (roots && S.folders.length) items.push(["/", "Sem pasta", roots]);
+        for (const f of S.folders)
+          items.push([f, f, S.songs.filter((s) => s.folder === f).length]);
+        for (const [key, label, n] of items) {
+          const b = el("button", S.folder === key ? "on" : "");
+          b.textContent = label + " (" + n + ")";
+          b.onclick = () => {
+            S.folder = key;
+            renderFolders();
+            renderSongs();
+          };
+          box.appendChild(b);
+        }
+        const nb = el("button", "new");
+        nb.textContent = "+ Nova pasta";
+        nb.onclick = newFolder;
+        box.appendChild(nb);
+
+        const dl = $("#folderList");
+        dl.textContent = "";
+        for (const f of S.folders) {
+          const o = el("option");
+          o.value = f;
+          dl.appendChild(o);
+        }
+      }
+
+      async function newFolder() {
+        const name = (prompt("Nome da pasta (artista):") || "").trim();
+        if (!name) return;
+        if (/[\\/]|^\.|\.\./.test(name)) return toast("Nome de pasta inválido", true);
+        try {
+          await post("/api/folder", { name });
+          S.folder = name;
+          await loadSongs();
+          toast("Pasta criada");
+        } catch (e) {
+          toast("Falha ao criar a pasta", true);
+        }
+      }
+
+      function renderQueue() {
+        const sel = $("#qFolder");
+        sel.textContent = "";
+        const opts = [["", "Todas as músicas"]];
+        if (S.songs.some((s) => !s.folder) && S.folders.length) opts.push(["/", "Sem pasta"]);
+        for (const f of S.folders) opts.push([f, f]);
+        for (const [v, label] of opts) {
+          const o = el("option");
+          o.value = v;
+          o.textContent = label;
+          sel.appendChild(o);
+        }
+        sel.value = S.queue.folder;
+        if (sel.value !== S.queue.folder) sel.value = "";
+        $("#qShuffle").checked = !!S.queue.shuffle;
+      }
+
+      async function loadQueue() {
+        try {
+          S.queue = await api("/api/queue");
+          renderQueue();
+        } catch (e) {}
+      }
+
+      async function saveQueue() {
+        const q = { folder: $("#qFolder").value, shuffle: $("#qShuffle").checked };
+        try {
+          await post("/api/queue", q);
+          S.queue = q;
+          toast(
+            "Fila: " +
+              (q.folder === "" ? "todas" : q.folder === "/" ? "sem pasta" : q.folder) +
+              (q.shuffle ? ", aleatório" : ""),
+          );
+        } catch (e) {
+          toast("Falha ao salvar a fila", true);
+          renderQueue();
+        }
       }
 
       async function playFile(name) {
@@ -1725,10 +1921,11 @@
       }
 
       function uploadOne(file) {
+        const upFolder = $("#upFolder").value.trim();
         const item = el("div", "up-item");
         const head = el("div", "up-head");
         const nm = el("span", "nm");
-        nm.textContent = file.name;
+        nm.textContent = (upFolder ? upFolder + " / " : "") + file.name;
         const pc = el("span", "pc");
         pc.textContent = "0%";
         const x = el("button", "x");
@@ -1763,7 +1960,7 @@
         };
 
         if (MOCK) {
-          const job = Mock.upload(file, progress, done, fail);
+          const job = Mock.upload(file, progress, done, fail, upFolder);
           x.onclick = () => {
             job.abort();
             item.remove();
@@ -1775,7 +1972,10 @@
         fd.append("file", file, file.name);
 
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/upload");
+        xhr.open(
+          "POST",
+          "/api/upload" + (upFolder ? "?folder=" + encodeURIComponent(upFolder) : ""),
+        );
 
         xhr.upload.onprogress = (ev) => {
           if (ev.lengthComputable) progress(ev.loaded, ev.total);
@@ -1885,6 +2085,7 @@
         S.metaFile = name;
         $("#metaFile").textContent = name;
         $("#metaArtist").value = s.artist || "";
+        $("#metaFolder").value = s.folder || "";
         $("#metaGenre").value = s.genre || "";
 
         // sugere generos ja usados, para nao virar zoo de grafias
@@ -1916,6 +2117,11 @@
           if (s) {
             s.artist = artist;
             s.genre = genre;
+          }
+          const folder = $("#metaFolder").value.trim();
+          if (s && folder !== (s.folder || "")) {
+            await post("/api/move", { file, folder });
+            await loadSongs();
           }
           renderSongs();
           closeMeta();
@@ -2373,6 +2579,11 @@
 
       /* ========= wiring ========= */
       (function init() {
+        // A rede do Localfy nao tem internet: a hora do celular acerta o relogio
+        // do aparelho, para o historico ter data.
+        if (!MOCK)
+          post("/api/time", { epoch: Math.floor(Date.now() / 1000) }).catch(() => {});
+
         // upload
         const drop = $("#drop"),
           fileIn = $("#file");
@@ -2398,6 +2609,11 @@
         });
         window.addEventListener("dragover", (e) => e.preventDefault());
         window.addEventListener("drop", (e) => e.preventDefault());
+
+        // fila do aparelho
+        $("#qFolder").onchange = saveQueue;
+        $("#qShuffle").onchange = saveQueue;
+        loadQueue();
 
         // filters
         $("#tabs").onclick = (e) => {

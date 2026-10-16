@@ -1,37 +1,40 @@
 #include "net/WifiLink.h"
 
+#include <DNSServer.h>
 #include <WiFi.h>
-#include <time.h>
 
 #include "config/Config.h"
 #include "core/Diagnostics.h"
 
+namespace {
+DNSServer s_dns;
+bool s_up = false;
+}  // namespace
+
 void wifilink::off() { WiFi.mode(WIFI_OFF); }
 
-bool wifilink::connect() {
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
+bool wifilink::startAccessPoint() {
+  WiFi.mode(WIFI_AP);
   diag::heapMark("antes Wi-Fi");
-  WiFi.begin(cfg::WIFI_SSID, cfg::WIFI_PASS);
-
-  Serial.print("[WIFI] conectando");
-  uint32_t start = millis();
-  while (!WiFi.isConnected() && millis() - start < cfg::net::WIFI_CONNECT_TIMEOUT_MS) {
-    delay(250);
-    Serial.print('.');
-  }
-  Serial.println();
-
-  if (!WiFi.isConnected()) {
-    Serial.println("[WIFI] falhou - seguindo offline");
+  s_up = WiFi.softAP(cfg::net::AP_SSID, cfg::net::AP_PASS);
+  if (!s_up) {
+    Serial.println("[WIFI] falha ao criar a rede");
     return false;
   }
-  Serial.printf("[WIFI] %s\n", WiFi.localIP().toString().c_str());
-  configTime(cfg::net::GMT_OFFSET_SEC, cfg::net::DST_OFFSET_SEC, cfg::net::NTP_SERVER_1,
-             cfg::net::NTP_SERVER_2);
+  // Qualquer endereco pesquisado aponta para o Localfy: ao entrar na rede, o
+  // celular mostra o aviso "entrar na rede" e abre a interface sozinho.
+  s_dns.start(53, "*", WiFi.softAPIP());
+  Serial.printf("[WIFI] rede %s no ar, abra http://%s\n", cfg::net::AP_SSID,
+                WiFi.softAPIP().toString().c_str());
   return true;
 }
 
-bool wifilink::connected() { return WiFi.isConnected(); }
+bool wifilink::up() { return s_up; }
+const char *wifilink::networkName() { return cfg::net::AP_SSID; }
+const char *wifilink::password() { return cfg::net::AP_PASS; }
+String wifilink::ip() { return WiFi.softAPIP().toString(); }
+int wifilink::clients() { return s_up ? WiFi.softAPgetStationNum() : 0; }
 
-String wifilink::ip() { return WiFi.localIP().toString(); }
+void wifilink::poll() {
+  if (s_up) s_dns.processNextRequest();
+}

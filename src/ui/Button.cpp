@@ -4,7 +4,8 @@
 
 #include "config/Config.h"
 
-Button::Button(uint8_t pin, uint32_t longPressMs) : pin_(pin), longPressMs_(longPressMs) {}
+Button::Button(uint8_t pin, uint32_t longPressMs, uint32_t repeatMs)
+    : pin_(pin), longPressMs_(longPressMs), repeatMs_(repeatMs) {}
 
 void Button::begin() { pinMode(pin_, INPUT_PULLUP); }
 
@@ -24,6 +25,12 @@ Button::Event Button::poll() {
   if (down && pressed_ && longPressMs_ > 0 && !longFired_ &&
       now - downSinceMs_ >= longPressMs_) {
     longFired_ = true;
+    lastEventMs_ = now;
+    return Event::LongPress;
+  }
+
+  // Segurando depois da pressao longa: repete (pular varias paginas).
+  if (down && pressed_ && longFired_ && repeatMs_ > 0 && now - lastEventMs_ >= repeatMs_) {
     lastEventMs_ = now;
     return Event::LongPress;
   }

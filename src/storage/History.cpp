@@ -48,12 +48,17 @@ void history::append(const String &file, uint32_t listenedSecs, uint32_t duratio
     return;
   }
 
+  // Sem artista cadastrado, vale o nome da pasta ("Sabrina Carpenter/...").
+  String artist = m ? m->artist : String("");
+  int slash = file.indexOf('/');
+  if (artist.isEmpty() && slash > 0) artist = file.substring(0, slash);
+
   bool completed = durationSecs > 0 && listenedSecs >= (durationSecs * 9) / 10;
   f.printf("%lu,%s,%s,%s,%s,%lu,%lu,%d\n",
            synced ? (unsigned long)now : 0UL,
            csvEscape(dt).c_str(),
            csvEscape(file).c_str(),
-           csvEscape(m ? m->artist : "").c_str(),
+           csvEscape(artist).c_str(),
            csvEscape(m ? m->genre : "").c_str(),
            (unsigned long)listenedSecs,
            (unsigned long)durationSecs,

@@ -28,7 +28,7 @@ pocket_d = 6;          // profundidade do encaixe (abaixo do knob de volume)
 pocket_clear = 0.4;    // folga por lado
 
 // Cabo USB: poco vertical sob o conector e canal ate a parte de tras.
-usb_well = [14, 10];   // abertura para o corpo do plugue (x, profundidade)
+usb_well = [15, 10];   // abertura para a capa do plugue USB-C (x, profundidade)
 channel_w = 12;
 channel_h = 10;
 

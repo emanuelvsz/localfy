@@ -6,6 +6,7 @@
 #include "config/Config.h"
 #include "core/BootMode.h"
 #include "core/Lock.h"
+#include "net/WifiLink.h"
 #include "storage/Library.h"
 #include "storage/MetaStore.h"
 #include "storage/Storage.h"
@@ -20,10 +21,15 @@ void sendStatus(AsyncWebServerRequest *req) {
   doc["mode"] = bootmode::current() == Mode::Bluetooth ? "bluetooth" : "wifi";
 
   JsonObject w = doc["wifi"].to<JsonObject>();
-  w["connected"] = WiFi.isConnected();
-  w["ssid"] = WiFi.SSID();
-  w["ip"] = WiFi.localIP().toString();
-  w["rssi"] = WiFi.RSSI();
+  // Rede propria do Localfy (ponto de acesso), nao um roteador.
+  w["connected"] = wifilink::up();
+  w["ssid"] = wifilink::networkName();
+  w["ip"] = wifilink::ip();
+  w["clients"] = wifilink::clients();
+
+  JsonObject q = doc["queue"].to<JsonObject>();
+  q["folder"] = library::filterLabel(player::queueFilter());
+  q["shuffle"] = player::shuffle();
 
   JsonObject b = doc["bt"].to<JsonObject>();
   b["state"] = bluetooth::stateName();
@@ -31,7 +37,7 @@ void sendStatus(AsyncWebServerRequest *req) {
   b["address"] = bluetooth::deviceAddress();
 
   int idx = player::currentIndex();
-  String file = idx >= 0 ? library::songs()[idx].name : String("");
+  String file = idx >= 0 ? library::nameOf(idx) : String("");
   const Meta *m = idx >= 0 ? meta::find(file) : nullptr;
   doc["file"] = file;
   doc["artist"] = m ? m->artist : "";
